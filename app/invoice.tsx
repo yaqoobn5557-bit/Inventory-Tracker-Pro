@@ -191,6 +191,16 @@ export default function InvoiceScreen() {
           <Text style={styles.totalLabel}>TOTAL</Text>
           <Text style={styles.totalAmount}>{getTotal()} SAR</Text>
         </View>
+
+        <View style={styles.returnSlipCard}>
+          <View style={styles.returnSlipIconRow}>
+            <Ionicons name="document-text-outline" size={22} color="#F59E0B" />
+            <Text style={styles.returnSlipTitle}>RETURN SLIP AND CREDIT NOTE</Text>
+          </View>
+          <Text style={styles.returnSlipSub}>
+            This invoice is subject to return slip and credit note policies
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -364,5 +374,30 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: 'Poppins_700Bold',
     color: '#10B981',
+  },
+  returnSlipCard: {
+    backgroundColor: '#FFFBEB',
+    borderRadius: 20,
+    padding: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  returnSlipIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  returnSlipTitle: {
+    fontSize: 14,
+    fontFamily: 'Poppins_700Bold',
+    color: '#92400E',
+    letterSpacing: 0.5,
+  },
+  returnSlipSub: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    color: '#A16207',
+    paddingLeft: 32,
   },
 });

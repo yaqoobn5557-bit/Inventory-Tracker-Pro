@@ -46,22 +46,13 @@ const OPTIONS: DashboardOption[] = [
     route: '/invoice',
   },
   {
-    id: 'uploading',
-    title: 'UPLOADING',
-    subtitle: 'Upload documents',
-    icon: 'cloud-upload-outline',
-    iconSet: 'ionicons',
-    gradient: ['#3B82F6', '#60A5FA'],
-    route: '/uploading',
-  },
-  {
     id: 'expiry-damage',
     title: 'EXPIRY DAMAGE',
     subtitle: 'Track expired & damaged items',
     icon: 'alert-circle-outline',
     iconSet: 'ionicons',
     gradient: ['#EF4444', '#F87171'],
-    route: '/expiry-damage',
+    route: '/shopper-verify',
   },
 ];
 
