@@ -37,17 +37,24 @@ const ITEM_DB: Record<string, ItemData> = {
 };
 
 const POLICY_COLOR: Record<Policy, string> = {
-  SUPPLIER: '#22C55E',
-  DS:       '#8B5CF6',
-  DC:       '#F97316',
-  UNKNOWN:  '#64748B',
+  SUPPLIER: '#16A34A',
+  DS:       '#7C3AED',
+  DC:       '#EA580C',
+  UNKNOWN:  '#2563EB',
 };
 
 const POLICY_BG: Record<Policy, string> = {
-  SUPPLIER: 'rgba(34,197,94,0.08)',
-  DS:       'rgba(139,92,246,0.08)',
-  DC:       'rgba(249,115,22,0.08)',
-  UNKNOWN:  'rgba(100,116,139,0.08)',
+  SUPPLIER: 'rgba(22,163,74,0.12)',
+  DS:       'rgba(124,58,237,0.12)',
+  DC:       'rgba(234,88,12,0.12)',
+  UNKNOWN:  'rgba(37,99,235,0.12)',
+};
+
+const POLICY_CARD_BG: Record<Policy, string> = {
+  SUPPLIER: 'rgba(22,163,74,0.08)',
+  DS:       'rgba(124,58,237,0.08)',
+  DC:       'rgba(234,88,12,0.08)',
+  UNKNOWN:  'rgba(37,99,235,0.08)',
 };
 
 const POLICY_LABEL: Record<Policy, string> = {
@@ -398,14 +405,16 @@ function EntryCard({
   isSaving: boolean;
 }) {
   const color = POLICY_COLOR[entry.policy];
-  const bg = POLICY_BG[entry.policy];
+  const cardBg = POLICY_CARD_BG[entry.policy];
+  const badgeBg = POLICY_BG[entry.policy];
   const needsR = entry.policy === 'DS' || entry.policy === 'DC';
   const needsP = entry.policy === 'DS' || entry.policy === 'DC';
+  const showOptionalExpiry = entry.policy === 'SUPPLIER' || entry.isNew;
 
   return (
-    <View style={[styles.entryCard, { borderLeftColor: color }]}>
+    <View style={[styles.entryCard, { backgroundColor: cardBg, borderTopWidth: 4, borderTopColor: color }]}>
       <View style={styles.entryTopRow}>
-        <View style={[styles.policyBadge, { backgroundColor: bg }]}>
+        <View style={[styles.policyBadge, { backgroundColor: badgeBg }]}>
           <View style={[styles.policyDot, { backgroundColor: color }]} />
           <Text style={[styles.policyBadgeText, { color }]}>{POLICY_LABEL[entry.policy]}</Text>
         </View>
@@ -540,6 +549,37 @@ function EntryCard({
         </View>
       )}
 
+      {showOptionalExpiry && (
+        <View style={styles.expiryBlock}>
+          <View style={[styles.expiryBlockInner, { borderColor: color + '30' }]}>
+            <Text style={[styles.fieldLabel, { color }]}>EXPIRY DATE (OPTIONAL)</Text>
+            <View style={styles.twoCol}>
+              <View style={[styles.fieldGroup, { flex: 1 }]}>
+                <Text style={styles.fieldLabel}>DATE</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="DD/MM/YYYY"
+                  placeholderTextColor={Colors.grayLight}
+                  value={entry.expiryDate}
+                  onChangeText={v => onChange({ expiryDate: v })}
+                />
+              </View>
+              <View style={[styles.fieldGroup, { flex: 1 }]}>
+                <Text style={styles.fieldLabel}>REMAINING DAYS</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="Days"
+                  placeholderTextColor={Colors.grayLight}
+                  value={entry.remainingDays}
+                  onChangeText={v => onChange({ remainingDays: v })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
       {(needsP || entry.isNew) && (
         <View style={styles.fieldGroup}>
           <View style={styles.photoFieldHeader}>
@@ -584,11 +624,12 @@ function EntryCard({
 
 function HistoryCard({ item }: { item: HistoryItem }) {
   const color = POLICY_COLOR[item.policy];
-  const bg = POLICY_BG[item.policy];
+  const badgeBg = POLICY_BG[item.policy];
+  const cardBg = POLICY_CARD_BG[item.policy];
   return (
-    <View style={[styles.historyCard, { borderLeftColor: color }]}>
+    <View style={[styles.historyCard, { backgroundColor: cardBg, borderTopWidth: 3, borderTopColor: color }]}>
       <View style={styles.historyCardTop}>
-        <View style={[styles.policyBadge, { backgroundColor: bg }]}>
+        <View style={[styles.policyBadge, { backgroundColor: badgeBg }]}>
           <View style={[styles.policyDot, { backgroundColor: color }]} />
           <Text style={[styles.policyBadgeText, { color }]}>{POLICY_LABEL[item.policy]}</Text>
         </View>
@@ -664,10 +705,10 @@ const styles = StyleSheet.create({
   },
 
   entryCard: {
-    backgroundColor: Colors.white, borderRadius: 20, padding: 18, gap: 14,
+    borderRadius: 20, padding: 18, gap: 14,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 12, elevation: 3,
-    borderLeftWidth: 4,
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
   },
   entryTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   policyBadge: {
@@ -776,10 +817,10 @@ const styles = StyleSheet.create({
   historyEmptyText: { fontSize: 13, fontFamily: 'Poppins_400Regular', color: Colors.gray },
 
   historyCard: {
-    backgroundColor: Colors.white, borderRadius: 16, padding: 16, gap: 8,
-    borderLeftWidth: 4,
+    borderRadius: 16, padding: 16, gap: 8,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
   historyCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   historyDate: { fontSize: 11, fontFamily: 'Poppins_400Regular', color: Colors.gray },
