@@ -26,6 +26,7 @@ function RootLayoutNav() {
       <Stack.Screen name="dashboard" />
       <Stack.Screen name="pomaker" />
       <Stack.Screen name="invoice" />
+      <Stack.Screen name="invoice-return" />
       <Stack.Screen name="shopper-verify" />
       <Stack.Screen name="expiry-damage" />
     </Stack>

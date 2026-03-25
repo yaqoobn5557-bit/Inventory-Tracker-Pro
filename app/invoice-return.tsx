@@ -23,51 +23,40 @@ function genId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
 }
 
-interface MainEntry {
+interface ReturnEntry {
   id: string;
-  type: 'PO' | 'ST';
+  type: 'PO' | 'RT';
   number: string;
   amount: string;
-  isFixing: boolean;
-  fixingSuffix: string;
-  fixingAmount: string;
 }
 
-function emptyMain(): MainEntry {
-  return {
-    id: genId(),
-    type: 'PO',
-    number: '',
-    amount: '',
-    isFixing: false,
-    fixingSuffix: '',
-    fixingAmount: '',
-  };
+function emptyReturn(): ReturnEntry {
+  return { id: genId(), type: 'PO', number: '', amount: '' };
 }
 
-function formatMainNumber(entry: MainEntry): string {
+function formatReturnNumber(entry: ReturnEntry): string {
   if (!entry.number.trim()) return '';
-  return entry.type === 'ST'
-    ? `ST${entry.number.trim()}`
+  return entry.type === 'RT'
+    ? `RT-${entry.number.trim()}`
     : `PO${entry.number.trim()}`;
 }
 
-export default function InvoiceScreen() {
+export default function InvoiceReturnScreen() {
   const insets = useSafeAreaInsets();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
-  const [entries, setEntries] = useState<MainEntry[]>([emptyMain()]);
+  const [entries, setEntries] = useState<ReturnEntry[]>([emptyReturn()]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  const updateEntry = useCallback((id: string, patch: Partial<MainEntry>) => {
+  const updateEntry = useCallback((id: string, patch: Partial<ReturnEntry>) => {
     setEntries(prev => prev.map(e => (e.id === id ? { ...e, ...patch } : e)));
   }, []);
 
   const addEntry = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setEntries(prev => [...prev, emptyMain()]);
+    setEntries(prev => [...prev, emptyReturn()]);
   };
 
   const removeEntry = (id: string) => {
@@ -99,15 +88,10 @@ export default function InvoiceScreen() {
     setPhotos(prev => prev.filter(p => p !== uri));
   };
 
-  const poTotal = entries
-    .filter(e => e.type === 'PO')
-    .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-
-  const fixingTotal = entries
-    .filter(e => e.type === 'PO' && e.isFixing)
-    .reduce((s, e) => s + (parseFloat(e.fixingAmount) || 0), 0);
-
-  const netTotal = poTotal - fixingTotal;
+  const returnTotal = entries.reduce(
+    (s, e) => s + (parseFloat(e.amount) || 0),
+    0
+  );
 
   const handleSave = async () => {
     if (photos.length < 1) {
@@ -121,25 +105,22 @@ export default function InvoiceScreen() {
       const invoices = existing ? JSON.parse(existing) : [];
       invoices.push({
         id: genId(),
-        type: 'MAIN',
+        type: 'RETURN',
         entries: entries.map(e => ({
           type: e.type,
-          number: formatMainNumber(e),
+          number: formatReturnNumber(e),
           amount: e.amount,
-          isFixing: e.isFixing,
-          fixingLabel: e.isFixing ? `${formatMainNumber(e)}-${e.fixingSuffix}` : '',
-          fixingAmount: e.fixingAmount,
         })),
-        netTotal: netTotal.toFixed(2),
+        returnTotal: returnTotal.toFixed(2),
         photoCount: photos.length,
         createdAt: new Date().toISOString(),
       });
       await AsyncStorage.setItem('invoices', JSON.stringify(invoices));
-      Alert.alert('Saved', 'Invoice saved successfully', [
+      Alert.alert('Saved', 'Return / CN saved successfully', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch {
-      Alert.alert('Error', 'Failed to save invoice');
+      Alert.alert('Error', 'Failed to save return');
     } finally {
       setIsSaving(false);
     }
@@ -158,12 +139,12 @@ export default function InvoiceScreen() {
             <Ionicons name="arrow-back" size={20} color={Colors.white} />
           </Pressable>
           <View style={styles.headerCenter}>
-            <MaterialCommunityIcons name="file-document-outline" size={16} color={Colors.accent} />
-            <Text style={styles.headerTitle}>MAIN INVOICE</Text>
+            <MaterialCommunityIcons name="swap-horizontal" size={16} color="#FBBF24" />
+            <Text style={styles.headerTitle}>RETURN / CN</Text>
           </View>
           <Pressable
             onPress={handleSave}
-            style={[styles.iconBtn, { backgroundColor: Colors.accent }]}
+            style={[styles.iconBtn, { backgroundColor: '#F59E0B' }]}
             disabled={isSaving}
           >
             <Ionicons name="checkmark" size={20} color={Colors.white} />
@@ -171,21 +152,21 @@ export default function InvoiceScreen() {
         </View>
 
         <View style={styles.tabStrip}>
-          <View style={styles.tabActive}>
-            <Ionicons name="document-text" size={13} color={Colors.white} />
-            <Text style={styles.tabActiveText}>MAIN INVOICE</Text>
-          </View>
           <Pressable
             style={styles.tabInactive}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push('/invoice-return');
+              router.back();
             }}
           >
-            <MaterialCommunityIcons name="swap-horizontal" size={13} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.tabInactiveText}>RETURN / CN</Text>
-            <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.4)" />
+            <Ionicons name="chevron-back" size={12} color="rgba(255,255,255,0.4)" />
+            <Ionicons name="document-text-outline" size={13} color="rgba(255,255,255,0.5)" />
+            <Text style={styles.tabInactiveText}>MAIN INVOICE</Text>
           </Pressable>
+          <View style={styles.tabActive}>
+            <MaterialCommunityIcons name="swap-horizontal" size={13} color={Colors.white} />
+            <Text style={styles.tabActiveText}>RETURN / CN</Text>
+          </View>
         </View>
       </LinearGradient>
 
@@ -199,7 +180,7 @@ export default function InvoiceScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {entries.map((entry, index) => (
-          <EntryCard
+          <ReturnEntryCard
             key={entry.id}
             entry={entry}
             index={index}
@@ -210,35 +191,16 @@ export default function InvoiceScreen() {
         ))}
 
         <Pressable onPress={addEntry} style={styles.addBtn}>
-          <Ionicons name="add-circle-outline" size={18} color="#6366F1" />
+          <Ionicons name="add-circle-outline" size={18} color="#F59E0B" />
           <Text style={styles.addBtnText}>Add Entry</Text>
         </Pressable>
 
-        {(poTotal > 0 || fixingTotal > 0) && (
+        {returnTotal > 0 && (
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>AMOUNT SUMMARY</Text>
-            <View style={styles.summaryBody}>
-              {poTotal > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>PO Total</Text>
-                  <Text style={styles.summaryVal}>{poTotal.toFixed(2)} SAR</Text>
-                </View>
-              )}
-              {fixingTotal > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Fixing Deduction</Text>
-                  <Text style={[styles.summaryVal, { color: Colors.danger }]}>
-                    -{fixingTotal.toFixed(2)} SAR
-                  </Text>
-                </View>
-              )}
-              {fixingTotal > 0 && <View style={styles.sumLine} />}
-              <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, styles.summaryLabelBold]}>NET TOTAL</Text>
-                <Text style={[styles.summaryVal, styles.summaryValBig]}>
-                  {netTotal.toFixed(2)} SAR
-                </Text>
-              </View>
+            <Text style={styles.summaryTitle}>RETURN SUMMARY</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Return / CN</Text>
+              <Text style={styles.summaryVal}>{returnTotal.toFixed(2)} SAR</Text>
             </View>
           </View>
         )}
@@ -246,7 +208,7 @@ export default function InvoiceScreen() {
         <View style={styles.photoCard}>
           <View style={styles.photoHeader}>
             <View style={styles.photoHeaderLeft}>
-              <Ionicons name="camera-outline" size={17} color={Colors.accent} />
+              <Ionicons name="camera-outline" size={17} color="#F59E0B" />
               <Text style={styles.photoTitle}>PHOTOS</Text>
             </View>
             <Text style={styles.photoCount}>{photos.length} / 100</Text>
@@ -281,20 +243,20 @@ export default function InvoiceScreen() {
   );
 }
 
-function EntryCard({
+function ReturnEntryCard({
   entry,
   index,
   showRemove,
   onUpdate,
   onRemove,
 }: {
-  entry: MainEntry;
+  entry: ReturnEntry;
   index: number;
   showRemove: boolean;
-  onUpdate: (p: Partial<MainEntry>) => void;
+  onUpdate: (p: Partial<ReturnEntry>) => void;
   onRemove: () => void;
 }) {
-  const formatted = formatMainNumber(entry);
+  const formatted = formatReturnNumber(entry);
 
   return (
     <View style={styles.entryCard}>
@@ -306,15 +268,15 @@ function EntryCard({
         <View style={styles.typeToggle}>
           <Pressable
             style={[styles.typeBtn, entry.type === 'PO' && styles.typeBtnPO]}
-            onPress={() => onUpdate({ type: 'PO', isFixing: false })}
+            onPress={() => onUpdate({ type: 'PO' })}
           >
             <Text style={[styles.typeTxt, entry.type === 'PO' && styles.typeTxtActive]}>PO</Text>
           </Pressable>
           <Pressable
-            style={[styles.typeBtn, entry.type === 'ST' && styles.typeBtnST]}
-            onPress={() => onUpdate({ type: 'ST', isFixing: false })}
+            style={[styles.typeBtn, entry.type === 'RT' && styles.typeBtnRT]}
+            onPress={() => onUpdate({ type: 'RT' })}
           >
-            <Text style={[styles.typeTxt, entry.type === 'ST' && styles.typeTxtActive]}>ST</Text>
+            <Text style={[styles.typeTxt, entry.type === 'RT' && styles.typeTxtActive]}>RT</Text>
           </Pressable>
         </View>
 
@@ -326,12 +288,12 @@ function EntryCard({
       </View>
 
       <View style={styles.numberRow}>
-        <View style={[styles.prefixBox, entry.type === 'ST' && styles.prefixBoxST]}>
+        <View style={[styles.prefixBox, entry.type === 'RT' && styles.prefixBoxRT]}>
           <Text style={styles.prefixTxt}>{entry.type}</Text>
         </View>
         <TextInput
           style={styles.numberInput}
-          placeholder={entry.type === 'PO' ? 'PO Number' : 'ST Number'}
+          placeholder={entry.type === 'PO' ? 'PO Number' : 'RT Number'}
           placeholderTextColor={Colors.grayLight}
           value={entry.number}
           onChangeText={v => onUpdate({ number: v })}
@@ -340,66 +302,19 @@ function EntryCard({
 
       {!!formatted && (
         <View style={styles.formattedRow}>
-          <Ionicons
-            name="checkmark-circle"
-            size={13}
-            color={entry.type === 'ST' ? '#10B981' : '#6366F1'}
-          />
-          <Text style={[styles.formattedTxt, entry.type === 'ST' && { color: '#10B981' }]}>
-            {formatted}
-          </Text>
+          <Ionicons name="checkmark-circle" size={13} color="#F59E0B" />
+          <Text style={styles.formattedTxt}>{formatted}</Text>
         </View>
       )}
 
-      {entry.type === 'PO' && (
-        <>
-          <TextInput
-            style={styles.amountInput}
-            placeholder="Amount (SAR)"
-            placeholderTextColor={Colors.grayLight}
-            value={entry.amount}
-            onChangeText={v => onUpdate({ amount: v })}
-            keyboardType="numeric"
-          />
-
-          <Pressable
-            style={styles.fixingToggle}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onUpdate({ isFixing: !entry.isFixing });
-            }}
-          >
-            <View style={[styles.check, entry.isFixing && styles.checkOn]}>
-              {entry.isFixing && <Ionicons name="checkmark" size={11} color="#fff" />}
-            </View>
-            <Text style={styles.fixingLbl}>Fixing Order</Text>
-          </Pressable>
-
-          {entry.isFixing && (
-            <View style={styles.fixingBox}>
-              <Text style={styles.fixingBoxLabel}>Fixing Reference</Text>
-              <View style={styles.fixingRefRow}>
-                <Text style={styles.fixingPrefix}>{formatted || 'PO'}-</Text>
-                <TextInput
-                  style={styles.fixingSuffixInput}
-                  placeholder="suffix / note"
-                  placeholderTextColor={Colors.grayLight}
-                  value={entry.fixingSuffix}
-                  onChangeText={v => onUpdate({ fixingSuffix: v })}
-                />
-              </View>
-              <TextInput
-                style={styles.amountInput}
-                placeholder="Fixing Deduction (SAR)"
-                placeholderTextColor={Colors.grayLight}
-                value={entry.fixingAmount}
-                onChangeText={v => onUpdate({ fixingAmount: v })}
-                keyboardType="numeric"
-              />
-            </View>
-          )}
-        </>
-      )}
+      <TextInput
+        style={styles.amountInput}
+        placeholder="Amount (SAR)"
+        placeholderTextColor={Colors.grayLight}
+        value={entry.amount}
+        onChangeText={v => onUpdate({ amount: v })}
+        keyboardType="numeric"
+      />
     </View>
   );
 }
@@ -434,6 +349,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
     letterSpacing: 1.5,
   },
+
   tabStrip: {
     flexDirection: 'row',
     marginHorizontal: 18,
@@ -449,7 +365,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#F59E0B',
     borderRadius: 10,
     paddingVertical: 10,
   },
@@ -489,7 +405,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
     borderLeftWidth: 4,
-    borderLeftColor: '#6366F1',
+    borderLeftColor: '#F59E0B',
   },
   entryRow: {
     flexDirection: 'row',
@@ -522,7 +438,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   typeBtnPO: { backgroundColor: '#6366F1' },
-  typeBtnST: { backgroundColor: '#10B981' },
+  typeBtnRT: { backgroundColor: '#F59E0B' },
   typeTxt: {
     fontSize: 12,
     fontFamily: 'Poppins_700Bold',
@@ -551,7 +467,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  prefixBoxST: { backgroundColor: '#10B981' },
+  prefixBoxRT: { backgroundColor: '#F59E0B' },
   prefixTxt: {
     fontSize: 12,
     fontFamily: 'Poppins_700Bold',
@@ -575,7 +491,7 @@ const styles = StyleSheet.create({
   formattedTxt: {
     fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
-    color: '#6366F1',
+    color: '#F59E0B',
   },
 
   amountInput: {
@@ -588,69 +504,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
 
-  fixingToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  check: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: Colors.grayLight,
-    backgroundColor: Colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkOn: {
-    backgroundColor: '#6366F1',
-    borderColor: '#6366F1',
-  },
-  fixingLbl: {
-    fontSize: 13,
-    fontFamily: 'Poppins_500Medium',
-    color: Colors.grayDark,
-  },
-
-  fixingBox: {
-    backgroundColor: 'rgba(99,102,241,0.05)',
-    borderRadius: 12,
-    padding: 14,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(99,102,241,0.15)',
-  },
-  fixingBoxLabel: {
-    fontSize: 11,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#6366F1',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  fixingRefRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.white,
-    borderRadius: 10,
-    paddingLeft: 10,
-    overflow: 'hidden',
-  },
-  fixingPrefix: {
-    fontSize: 13,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#6366F1',
-  },
-  fixingSuffixInput: {
-    flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    fontSize: 13,
-    fontFamily: 'Poppins_400Regular',
-    color: Colors.primary,
-  },
-
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -659,13 +512,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#6366F1',
+    borderColor: '#F59E0B',
     borderStyle: 'dashed',
   },
   addBtnText: {
     fontSize: 13,
     fontFamily: 'Poppins_600SemiBold',
-    color: '#6366F1',
+    color: '#F59E0B',
   },
 
   summaryCard: {
@@ -685,7 +538,6 @@ const styles = StyleSheet.create({
     color: Colors.gray,
     letterSpacing: 2,
   },
-  summaryBody: { gap: 10 },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -696,23 +548,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: Colors.grayDark,
   },
-  summaryLabelBold: {
-    fontFamily: 'Poppins_700Bold',
-    color: Colors.primary,
-  },
   summaryVal: {
-    fontSize: 13,
-    fontFamily: 'Poppins_600SemiBold',
-    color: Colors.primary,
-  },
-  summaryValBig: {
     fontSize: 18,
     fontFamily: 'Poppins_700Bold',
-    color: '#6366F1',
-  },
-  sumLine: {
-    height: 1,
-    backgroundColor: Colors.offWhite,
+    color: '#F59E0B',
   },
 
   photoCard: {
@@ -779,7 +618,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.accent,
+    backgroundColor: '#F59E0B',
     borderRadius: 14,
     paddingVertical: 14,
   },
