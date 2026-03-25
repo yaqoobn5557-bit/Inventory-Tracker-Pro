@@ -44,17 +44,17 @@ const POLICY_COLOR: Record<Policy, string> = {
 };
 
 const POLICY_BG: Record<Policy, string> = {
-  SUPPLIER: 'rgba(22,163,74,0.12)',
-  DS:       'rgba(124,58,237,0.12)',
-  DC:       'rgba(234,88,12,0.12)',
-  UNKNOWN:  'rgba(37,99,235,0.12)',
+  SUPPLIER: 'rgba(22,163,74,0.15)',
+  DS:       'rgba(124,58,237,0.15)',
+  DC:       'rgba(234,88,12,0.15)',
+  UNKNOWN:  'rgba(37,99,235,0.15)',
 };
 
 const POLICY_CARD_BG: Record<Policy, string> = {
-  SUPPLIER: 'rgba(22,163,74,0.08)',
-  DS:       'rgba(124,58,237,0.08)',
-  DC:       'rgba(234,88,12,0.08)',
-  UNKNOWN:  'rgba(37,99,235,0.08)',
+  SUPPLIER: '#E8F5EE',
+  DS:       '#F0EBFD',
+  DC:       '#FDF0E8',
+  UNKNOWN:  '#E8EFFE',
 };
 
 const POLICY_LABEL: Record<Policy, string> = {
@@ -117,13 +117,12 @@ function isToday(iso: string) {
 function isThisWeek(iso: string) {
   const d = new Date(iso);
   const now = new Date();
-  const diff = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
-  return diff <= 7;
+  return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 7;
 }
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    + '  ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+    + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
 export default function ExpiryDamageScreen() {
@@ -142,9 +141,7 @@ export default function ExpiryDamageScreen() {
   const barcodeRef = useRef<TextInput>(null);
   const lastScannedRef = useRef('');
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
+  useEffect(() => { loadHistory(); }, []);
 
   const loadHistory = async () => {
     try {
@@ -166,7 +163,6 @@ export default function ExpiryDamageScreen() {
     if (data === lastScannedRef.current) return;
     lastScannedRef.current = data;
     setTimeout(() => { lastScannedRef.current = ''; }, 2000);
-
     if (type !== 'code128') {
       Alert.alert('Unsupported Barcode', `Only Code 128 supported.\nDetected: ${type.toUpperCase()}`);
       return;
@@ -176,10 +172,7 @@ export default function ExpiryDamageScreen() {
   };
 
   const openScanner = async () => {
-    if (Platform.OS === 'web') {
-      Alert.alert('Not Available', 'Use manual entry on web.');
-      return;
-    }
+    if (Platform.OS === 'web') { Alert.alert('Not Available', 'Use manual entry on web.'); return; }
     if (!permission?.granted) {
       const r = await requestPermission();
       if (!r.granted) { Alert.alert('Permission Required', 'Camera permission needed.'); return; }
@@ -213,22 +206,17 @@ export default function ExpiryDamageScreen() {
     updateEntry({ photos: entry.photos.filter(p => p !== uri) });
   };
 
-  const needsPhoto = (e: CurrentEntry) => e.policy === 'DS' || e.policy === 'DC';
-  const needsReason = (e: CurrentEntry) => e.policy === 'DS' || e.policy === 'DC';
-  const showExpiry = (e: CurrentEntry) => e.reason === 'Expired ITEM';
-
   const handleSubmit = async () => {
     if (!entry) return;
     if (!entry.qty.trim()) { Alert.alert('Missing', 'Please enter quantity.'); return; }
-    if (needsPhoto(entry) && entry.photos.length === 0) {
-      Alert.alert('Photo Required', 'Please add at least 1 photo for DS/DC items.');
-      return;
+    const needsPhoto = entry.policy === 'DS' || entry.policy === 'DC';
+    const needsReason = entry.policy === 'DS' || entry.policy === 'DC';
+    if (needsPhoto && entry.photos.length === 0) {
+      Alert.alert('Photo Required', 'Please add at least 1 photo for DS/DC items.'); return;
     }
-    if (needsReason(entry) && !entry.reason) {
-      Alert.alert('Reason Required', 'Please select a reason for DS/DC items.');
-      return;
+    if (needsReason && !entry.reason) {
+      Alert.alert('Reason Required', 'Please select a reason for DS/DC items.'); return;
     }
-
     setIsSaving(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
@@ -249,7 +237,7 @@ export default function ExpiryDamageScreen() {
       setHistory(updated);
       await AsyncStorage.setItem('expiry_damage_history', JSON.stringify(updated));
       setEntry(null);
-      barcodeRef.current?.focus();
+      setTimeout(() => barcodeRef.current?.focus(), 100);
     } catch {
       Alert.alert('Error', 'Failed to save.');
     } finally {
@@ -303,55 +291,32 @@ export default function ExpiryDamageScreen() {
         end={{ x: 1, y: 0 }}
       >
         <View style={[styles.headerRow, { paddingTop: insets.top + webTopInset + 10 }]}>
-          <Pressable onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-          </Pressable>
+          {entry ? (
+            <Pressable onPress={() => setEntry(null)} style={styles.headerBtn}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => router.back()} style={styles.headerBtn}>
+              <Ionicons name="arrow-back" size={20} color="#fff" />
+            </Pressable>
+          )}
           <View style={styles.headerCenter}>
             <Ionicons name="alert-circle-outline" size={16} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.headerTitle}>EXPIRY / DAMAGE</Text>
+            <Text style={styles.headerTitle}>
+              {entry ? 'ITEM ENTRY' : 'EXPIRY / DAMAGE'}
+            </Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
       </LinearGradient>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + webBottomInset + 24 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.scanInputCard}>
-          <Pressable onPress={openScanner} style={styles.camBtn}>
-            <LinearGradient colors={['#EF4444', '#F87171']} style={styles.camBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Ionicons name="scan" size={26} color="#fff" />
-              <Text style={styles.camBtnText}>Tap to Scan</Text>
-            </LinearGradient>
-          </Pressable>
-          <View style={styles.orRow}>
-            <View style={styles.orLine} />
-            <Text style={styles.orTxt}>OR ENTER / PHYSICAL SCANNER</Text>
-            <View style={styles.orLine} />
-          </View>
-          <View style={styles.barcodeRow}>
-            <TextInput
-              ref={barcodeRef}
-              style={styles.barcodeInput}
-              placeholder="Scan or type barcode"
-              placeholderTextColor={Colors.grayLight}
-              value={barcodeInput}
-              onChangeText={setBarcodeInput}
-              autoFocus
-              returnKeyType="done"
-              blurOnSubmit={false}
-              onSubmitEditing={() => processBarcode(barcodeInput)}
-            />
-            <Pressable onPress={() => processBarcode(barcodeInput)} style={styles.barcodeAddBtn}>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
-            </Pressable>
-          </View>
-        </View>
-
-        {entry && (
+      {entry ? (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + webBottomInset + 32 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <EntryCard
             entry={entry}
             onChange={updateEntry}
@@ -360,36 +325,74 @@ export default function ExpiryDamageScreen() {
             onSubmit={handleSubmit}
             isSaving={isSaving}
           />
-        )}
-
-        <View style={styles.historySection}>
-          <View style={styles.historyHeader}>
-            <Text style={styles.historyTitle}>HISTORY</Text>
-            <View style={styles.dateFilters}>
-              {(['today', 'week', 'all'] as DateFilter[]).map(f => (
-                <Pressable
-                  key={f}
-                  onPress={() => setDateFilter(f)}
-                  style={[styles.filterBtn, dateFilter === f && styles.filterBtnActive]}
-                >
-                  <Text style={[styles.filterBtnText, dateFilter === f && styles.filterBtnTextActive]}>
-                    {f === 'today' ? 'Today' : f === 'week' ? 'Week' : 'All'}
-                  </Text>
-                </Pressable>
-              ))}
+        </ScrollView>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + webBottomInset + 24 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.scanInputCard}>
+            <Pressable onPress={openScanner} style={styles.camBtn}>
+              <LinearGradient colors={['#EF4444', '#F87171']} style={styles.camBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name="scan" size={26} color="#fff" />
+                <Text style={styles.camBtnText}>Tap to Scan</Text>
+              </LinearGradient>
+            </Pressable>
+            <View style={styles.orRow}>
+              <View style={styles.orLine} />
+              <Text style={styles.orTxt}>OR ENTER / PHYSICAL SCANNER</Text>
+              <View style={styles.orLine} />
+            </View>
+            <View style={styles.barcodeRow}>
+              <TextInput
+                ref={barcodeRef}
+                style={styles.barcodeInput}
+                placeholder="Scan or type barcode"
+                placeholderTextColor={Colors.grayLight}
+                value={barcodeInput}
+                onChangeText={setBarcodeInput}
+                autoFocus
+                returnKeyType="done"
+                blurOnSubmit={false}
+                onSubmitEditing={() => processBarcode(barcodeInput)}
+              />
+              <Pressable onPress={() => processBarcode(barcodeInput)} style={styles.barcodeAddBtn}>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
+              </Pressable>
             </View>
           </View>
 
-          {filteredHistory.length === 0 ? (
-            <View style={styles.historyEmpty}>
-              <Ionicons name="time-outline" size={32} color={Colors.grayLight} />
-              <Text style={styles.historyEmptyText}>No records for this period</Text>
+          <View style={styles.historySection}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>HISTORY</Text>
+              <View style={styles.dateFilters}>
+                {(['today', 'week', 'all'] as DateFilter[]).map(f => (
+                  <Pressable
+                    key={f}
+                    onPress={() => setDateFilter(f)}
+                    style={[styles.filterBtn, dateFilter === f && styles.filterBtnActive]}
+                  >
+                    <Text style={[styles.filterBtnText, dateFilter === f && styles.filterBtnTextActive]}>
+                      {f === 'today' ? 'Today' : f === 'week' ? 'Week' : 'All'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
-          ) : (
-            filteredHistory.map(h => <HistoryCard key={h.id} item={h} />)
-          )}
-        </View>
-      </ScrollView>
+
+            {filteredHistory.length === 0 ? (
+              <View style={styles.historyEmpty}>
+                <Ionicons name="time-outline" size={32} color={Colors.grayLight} />
+                <Text style={styles.historyEmptyText}>No records for this period</Text>
+              </View>
+            ) : (
+              filteredHistory.map(h => <HistoryCard key={h.id} item={h} />)
+            )}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -404,15 +407,18 @@ function EntryCard({
   onSubmit: () => void;
   isSaving: boolean;
 }) {
+  const [expiryOpen, setExpiryOpen] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
+
   const color = POLICY_COLOR[entry.policy];
   const cardBg = POLICY_CARD_BG[entry.policy];
   const badgeBg = POLICY_BG[entry.policy];
-  const needsR = entry.policy === 'DS' || entry.policy === 'DC';
-  const needsP = entry.policy === 'DS' || entry.policy === 'DC';
-  const showOptionalExpiry = entry.policy === 'SUPPLIER' || entry.isNew;
+  const isDsDc = entry.policy === 'DS' || entry.policy === 'DC';
+  const isSupplier = entry.policy === 'SUPPLIER';
+  const isNew = entry.isNew;
 
   return (
-    <View style={[styles.entryCard, { backgroundColor: cardBg, borderTopWidth: 4, borderTopColor: color }]}>
+    <View style={[styles.entryCard, { backgroundColor: cardBg, borderTopWidth: 5, borderTopColor: color }]}>
       <View style={styles.entryTopRow}>
         <View style={[styles.policyBadge, { backgroundColor: badgeBg }]}>
           <View style={[styles.policyDot, { backgroundColor: color }]} />
@@ -424,7 +430,7 @@ function EntryCard({
         </View>
       </View>
 
-      {entry.isNew ? (
+      {isNew ? (
         <>
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>ITEM NAME</Text>
@@ -453,10 +459,7 @@ function EntryCard({
                 <Pressable
                   key={p}
                   onPress={() => onChange({ policy: p, reason: null })}
-                  style={[
-                    styles.policyToggleBtn,
-                    entry.policy === p && { backgroundColor: POLICY_COLOR[p] },
-                  ]}
+                  style={[styles.policyToggleBtn, entry.policy === p && { backgroundColor: POLICY_COLOR[p] }]}
                 >
                   <Text style={[styles.policyToggleTxt, entry.policy === p && { color: '#fff' }]}>{p}</Text>
                 </Pressable>
@@ -465,28 +468,26 @@ function EntryCard({
           </View>
         </>
       ) : (
-        <>
-          <View style={styles.itemInfoRow}>
-            <View style={styles.itemInfoBlock}>
-              <Text style={styles.itemName}>{entry.itemName}</Text>
-              <Text style={styles.itemSku}>{entry.sku}</Text>
-            </View>
-            <View style={styles.policyChangePill}>
-              <Text style={styles.policyChangeLabel}>Change Policy</Text>
-              <View style={styles.policyToggleMini}>
-                {POLICIES.map(p => (
-                  <Pressable
-                    key={p}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ policy: p, reason: null }); }}
-                    style={[styles.policyToggleMiniBtn, entry.policy === p && { backgroundColor: POLICY_COLOR[p] }]}
-                  >
-                    <Text style={[styles.policyToggleMiniTxt, entry.policy === p && { color: '#fff' }]}>{p}</Text>
-                  </Pressable>
-                ))}
-              </View>
+        <View style={styles.itemInfoRow}>
+          <View style={styles.itemInfoBlock}>
+            <Text style={styles.itemName}>{entry.itemName}</Text>
+            <Text style={styles.itemSku}>{entry.sku}</Text>
+          </View>
+          <View style={styles.policyChangePill}>
+            <Text style={styles.policyChangeLabel}>Change</Text>
+            <View style={styles.policyToggleMini}>
+              {POLICIES.map(p => (
+                <Pressable
+                  key={p}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ policy: p, reason: null }); }}
+                  style={[styles.policyToggleMiniBtn, entry.policy === p && { backgroundColor: POLICY_COLOR[p] }]}
+                >
+                  <Text style={[styles.policyToggleMiniTxt, entry.policy === p && { color: '#fff' }]}>{p}</Text>
+                </Pressable>
+              ))}
             </View>
           </View>
-        </>
+        </View>
       )}
 
       <View style={styles.fieldGroup}>
@@ -501,11 +502,11 @@ function EntryCard({
         />
       </View>
 
-      {needsR && (
+      {isDsDc && (
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>REASON</Text>
           <View style={styles.reasonGrid}>
-            {(['Fresh ITEM', 'Expired', 'Damage Wrong Display', 'Expired ITEM'] as Reason[]).map(r => (
+            {REASONS.map(r => (
               <Pressable
                 key={r}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ reason: r, expiryDate: '', remainingDays: '' }); }}
@@ -518,72 +519,39 @@ function EntryCard({
         </View>
       )}
 
-      {entry.reason === 'Expired ITEM' && (
-        <View style={styles.expiryBlock}>
-          <View style={[styles.expiryBlockInner, { borderColor: color + '40' }]}>
-            <Text style={[styles.fieldLabel, { color }]}>EXPIRY DETAILS</Text>
-            <View style={styles.twoCol}>
-              <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>EXPIRY DATE</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="DD/MM/YYYY"
-                  placeholderTextColor={Colors.grayLight}
-                  value={entry.expiryDate}
-                  onChangeText={v => onChange({ expiryDate: v })}
-                />
-              </View>
-              <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>REMAINING DAYS</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="Days"
-                  placeholderTextColor={Colors.grayLight}
-                  value={entry.remainingDays}
-                  onChangeText={v => onChange({ remainingDays: v })}
-                  keyboardType="numeric"
-                />
-              </View>
+      {isDsDc && entry.reason === 'Expired ITEM' && (
+        <View style={[styles.expiryBlockInner, { borderColor: color + '40' }]}>
+          <Text style={[styles.fieldLabel, { color, marginBottom: 2 }]}>EXPIRY DETAILS</Text>
+          <View style={styles.twoCol}>
+            <View style={[styles.fieldGroup, { flex: 1 }]}>
+              <Text style={styles.fieldLabel}>EXPIRY DATE</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="DD/MM/YYYY"
+                placeholderTextColor={Colors.grayLight}
+                value={entry.expiryDate}
+                onChangeText={v => onChange({ expiryDate: v })}
+              />
+            </View>
+            <View style={[styles.fieldGroup, { flex: 1 }]}>
+              <Text style={styles.fieldLabel}>REMAINING DAYS</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="Days"
+                placeholderTextColor={Colors.grayLight}
+                value={entry.remainingDays}
+                onChangeText={v => onChange({ remainingDays: v })}
+                keyboardType="numeric"
+              />
             </View>
           </View>
         </View>
       )}
 
-      {showOptionalExpiry && (
-        <View style={styles.expiryBlock}>
-          <View style={[styles.expiryBlockInner, { borderColor: color + '30' }]}>
-            <Text style={[styles.fieldLabel, { color }]}>EXPIRY DATE (OPTIONAL)</Text>
-            <View style={styles.twoCol}>
-              <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>DATE</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="DD/MM/YYYY"
-                  placeholderTextColor={Colors.grayLight}
-                  value={entry.expiryDate}
-                  onChangeText={v => onChange({ expiryDate: v })}
-                />
-              </View>
-              <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>REMAINING DAYS</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="Days"
-                  placeholderTextColor={Colors.grayLight}
-                  value={entry.remainingDays}
-                  onChangeText={v => onChange({ remainingDays: v })}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {(needsP || entry.isNew) && (
+      {isDsDc && (
         <View style={styles.fieldGroup}>
           <View style={styles.photoFieldHeader}>
-            <Text style={styles.fieldLabel}>PHOTOS {needsP ? '(MIN 1 REQUIRED)' : '(OPTIONAL)'}</Text>
+            <Text style={styles.fieldLabel}>PHOTOS (MIN 1 REQUIRED)</Text>
             <Text style={styles.photoCountTxt}>{entry.photos.length}/100</Text>
           </View>
           {entry.photos.length > 0 && (
@@ -600,11 +568,96 @@ function EntryCard({
           )}
           <Pressable onPress={onPhotoPick} style={[styles.photoBtn, { borderColor: color }]}>
             <Ionicons name="camera-outline" size={16} color={color} />
-            <Text style={[styles.photoBtnText, { color }]}>
-              {entry.photos.length === 0 ? 'Add Photo' : 'Add More'}
-            </Text>
+            <Text style={[styles.photoBtnText, { color }]}>{entry.photos.length === 0 ? 'Add Photo' : 'Add More'}</Text>
           </Pressable>
         </View>
+      )}
+
+      {(isSupplier || isNew) && (
+        <>
+          <Pressable
+            onPress={() => { setExpiryOpen(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            style={[styles.optToggleRow, { borderColor: color + '50' }]}
+          >
+            <View style={[styles.optToggleIcon, { backgroundColor: color + '20' }]}>
+              <Ionicons name="calendar-outline" size={15} color={color} />
+            </View>
+            <Text style={[styles.optToggleLabel, { color }]}>
+              {expiryOpen ? 'Hide Expiry Date' : 'Add Expiry Date'}
+            </Text>
+            <Ionicons name={expiryOpen ? 'chevron-up' : 'chevron-down'} size={16} color={color} />
+          </Pressable>
+
+          {expiryOpen && (
+            <View style={[styles.expiryBlockInner, { borderColor: color + '40' }]}>
+              <View style={styles.twoCol}>
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>EXPIRY DATE</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="DD/MM/YYYY"
+                    placeholderTextColor={Colors.grayLight}
+                    value={entry.expiryDate}
+                    onChangeText={v => onChange({ expiryDate: v })}
+                  />
+                </View>
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>REMAINING DAYS</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="Days"
+                    placeholderTextColor={Colors.grayLight}
+                    value={entry.remainingDays}
+                    onChangeText={v => onChange({ remainingDays: v })}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {isNew && (
+            <>
+              <Pressable
+                onPress={() => { setPhotosOpen(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                style={[styles.optToggleRow, { borderColor: color + '50' }]}
+              >
+                <View style={[styles.optToggleIcon, { backgroundColor: color + '20' }]}>
+                  <Ionicons name="camera-outline" size={15} color={color} />
+                </View>
+                <Text style={[styles.optToggleLabel, { color }]}>
+                  {photosOpen ? `Hide Photos${entry.photos.length > 0 ? ` (${entry.photos.length})` : ''}` : 'Add Photos'}
+                </Text>
+                <Ionicons name={photosOpen ? 'chevron-up' : 'chevron-down'} size={16} color={color} />
+              </Pressable>
+
+              {photosOpen && (
+                <View style={styles.fieldGroup}>
+                  <View style={styles.photoFieldHeader}>
+                    <Text style={styles.fieldLabel}>PHOTOS (OPTIONAL)</Text>
+                    <Text style={styles.photoCountTxt}>{entry.photos.length}/100</Text>
+                  </View>
+                  {entry.photos.length > 0 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+                      {entry.photos.map(uri => (
+                        <View key={uri} style={styles.photoThumb}>
+                          <Image source={{ uri }} style={styles.photoImg} />
+                          <Pressable onPress={() => onPhotoRemove(uri)} style={styles.photoRemove}>
+                            <Ionicons name="close" size={11} color="#fff" />
+                          </Pressable>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  )}
+                  <Pressable onPress={onPhotoPick} style={[styles.photoBtn, { borderColor: color }]}>
+                    <Ionicons name="camera-outline" size={16} color={color} />
+                    <Text style={[styles.photoBtnText, { color }]}>{entry.photos.length === 0 ? 'Add Photo' : 'Add More'}</Text>
+                  </Pressable>
+                </View>
+              )}
+            </>
+          )}
+        </>
       )}
 
       <Pressable onPress={onSubmit} disabled={isSaving} style={styles.submitBtn}>
@@ -624,30 +677,30 @@ function EntryCard({
 
 function HistoryCard({ item }: { item: HistoryItem }) {
   const color = POLICY_COLOR[item.policy];
-  const badgeBg = POLICY_BG[item.policy];
   const cardBg = POLICY_CARD_BG[item.policy];
   return (
-    <View style={[styles.historyCard, { backgroundColor: cardBg, borderTopWidth: 3, borderTopColor: color }]}>
-      <View style={styles.historyCardTop}>
-        <View style={[styles.policyBadge, { backgroundColor: badgeBg }]}>
-          <View style={[styles.policyDot, { backgroundColor: color }]} />
-          <Text style={[styles.policyBadgeText, { color }]}>{POLICY_LABEL[item.policy]}</Text>
-        </View>
-        <Text style={styles.historyDate}>{fmtDateTime(item.createdAt)}</Text>
-      </View>
-      <Text style={styles.historyItemName}>{item.itemName}</Text>
-      <View style={styles.historyMeta}>
-        {item.sku ? <Text style={styles.historyMetaTxt}>{item.sku}</Text> : null}
-        <Text style={styles.historyMetaTxt}>Barcode: {item.barcode}</Text>
-        <Text style={styles.historyMetaTxt}>Qty: <Text style={{ fontFamily: 'Poppins_700Bold', color: Colors.primary }}>{item.qty}</Text></Text>
-        {item.reason ? <Text style={styles.historyMetaTxt}>Reason: {item.reason}</Text> : null}
-        {item.expiryDate ? <Text style={styles.historyMetaTxt}>Expiry: {item.expiryDate} ({item.remainingDays} days)</Text> : null}
-        {item.photoCount > 0 ? (
-          <View style={styles.photoBadge}>
-            <Ionicons name="camera" size={11} color={color} />
-            <Text style={[styles.photoBadgeTxt, { color }]}>{item.photoCount} photo{item.photoCount > 1 ? 's' : ''}</Text>
+    <View style={[styles.historyCard, { backgroundColor: cardBg, borderLeftColor: color }]}>
+      <View style={styles.historyRow}>
+        <View style={[styles.historyDot, { backgroundColor: color }]} />
+        <View style={styles.historyBody}>
+          <Text style={styles.historyItemName} numberOfLines={1}>{item.itemName}</Text>
+          <View style={styles.historyMeta}>
+            <Text style={styles.historyMetaTxt}>{item.barcode}</Text>
+            {item.reason ? <Text style={styles.historyMetaTxt}>· {item.reason}</Text> : null}
+            {item.expiryDate ? <Text style={styles.historyMetaTxt}>· Exp {item.expiryDate}</Text> : null}
+            {item.photoCount > 0 ? (
+              <View style={styles.photoBadge}>
+                <Text style={styles.historyMetaTxt}>·</Text>
+                <Ionicons name="camera" size={10} color={color} />
+                <Text style={[styles.historyMetaTxt, { color }]}>{item.photoCount}</Text>
+              </View>
+            ) : null}
           </View>
-        ) : null}
+        </View>
+        <View style={styles.historyRight}>
+          <Text style={[styles.historyQty, { color }]}>{item.qty}</Text>
+          <Text style={styles.historyDate}>{fmtDateTime(item.createdAt)}</Text>
+        </View>
       </View>
     </View>
   );
@@ -661,21 +714,16 @@ const styles = StyleSheet.create({
 
   header: { paddingBottom: 18 },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', paddingHorizontal: 18,
   },
   headerBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center', alignItems: 'center',
   },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: {
-    fontSize: 16, fontFamily: 'Poppins_700Bold',
-    color: '#fff', letterSpacing: 1.5,
-  },
+  headerTitle: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: '#fff', letterSpacing: 1.5 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: 16, gap: 14 },
@@ -706,9 +754,8 @@ const styles = StyleSheet.create({
 
   entryCard: {
     borderRadius: 20, padding: 18, gap: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1, shadowRadius: 14, elevation: 5,
   },
   entryTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   policyBadge: {
@@ -719,18 +766,18 @@ const styles = StyleSheet.create({
   policyBadgeText: { fontSize: 11, fontFamily: 'Poppins_700Bold', letterSpacing: 0.8 },
   barcodeTag: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.offWhite, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.06)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
   },
-  barcodeTagText: { fontSize: 11, fontFamily: 'Poppins_500Medium', color: Colors.gray },
+  barcodeTagText: { fontSize: 11, fontFamily: 'Poppins_500Medium', color: Colors.grayDark },
 
   itemInfoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   itemInfoBlock: { flex: 1 },
   itemName: { fontSize: 15, fontFamily: 'Poppins_700Bold', color: Colors.primary },
   itemSku: { fontSize: 12, fontFamily: 'Poppins_400Regular', color: Colors.gray, marginTop: 2 },
-  policyChangePill: { gap: 6, alignItems: 'flex-end' },
+  policyChangePill: { gap: 4, alignItems: 'flex-end' },
   policyChangeLabel: { fontSize: 9, fontFamily: 'Poppins_600SemiBold', color: Colors.gray, letterSpacing: 0.8 },
   policyToggleMini: {
-    flexDirection: 'row', backgroundColor: Colors.offWhite,
+    flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.06)',
     borderRadius: 8, padding: 2, gap: 2,
   },
   policyToggleMiniBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, alignItems: 'center' },
@@ -742,13 +789,15 @@ const styles = StyleSheet.create({
     color: Colors.gray, letterSpacing: 1.5, textTransform: 'uppercase',
   },
   fieldInput: {
-    backgroundColor: Colors.offWhite, borderRadius: 12,
+    backgroundColor: Colors.white, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 13,
     fontSize: 14, fontFamily: 'Poppins_400Regular', color: Colors.primary,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
 
   policyToggle: {
-    flexDirection: 'row', backgroundColor: Colors.offWhite,
+    flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.06)',
     borderRadius: 12, padding: 4, gap: 4,
   },
   policyToggleBtn: {
@@ -765,12 +814,27 @@ const styles = StyleSheet.create({
   },
   reasonBtnText: { fontSize: 12, fontFamily: 'Poppins_600SemiBold', color: Colors.grayDark },
 
-  expiryBlock: { gap: 0 },
   expiryBlockInner: {
-    backgroundColor: Colors.offWhite, borderRadius: 14, padding: 14,
+    backgroundColor: Colors.white, borderRadius: 14, padding: 14,
     gap: 10, borderWidth: 1,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
   twoCol: { flexDirection: 'row', gap: 10 },
+
+  optToggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 11, paddingHorizontal: 14,
+    backgroundColor: Colors.white, borderRadius: 12,
+    borderWidth: 1.5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  },
+  optToggleIcon: {
+    width: 28, height: 28, borderRadius: 8,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  optToggleLabel: { flex: 1, fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
 
   photoFieldHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   photoCountTxt: { fontSize: 12, fontFamily: 'Poppins_600SemiBold', color: Colors.gray },
@@ -786,6 +850,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, paddingVertical: 12, borderRadius: 12,
     borderWidth: 1.5, borderStyle: 'dashed',
+    backgroundColor: Colors.white,
   },
   photoBtnText: { fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
 
@@ -796,15 +861,12 @@ const styles = StyleSheet.create({
   },
   submitTxt: { fontSize: 15, fontFamily: 'Poppins_700Bold', color: '#fff', letterSpacing: 0.5 },
 
-  historySection: { gap: 12 },
+  historySection: { gap: 10 },
   historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  historyTitle: {
-    fontSize: 12, fontFamily: 'Poppins_700Bold',
-    color: Colors.gray, letterSpacing: 2,
-  },
+  historyTitle: { fontSize: 12, fontFamily: 'Poppins_700Bold', color: Colors.gray, letterSpacing: 2 },
   dateFilters: { flexDirection: 'row', gap: 6 },
   filterBtn: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
     backgroundColor: Colors.white,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
@@ -817,18 +879,22 @@ const styles = StyleSheet.create({
   historyEmptyText: { fontSize: 13, fontFamily: 'Poppins_400Regular', color: Colors.gray },
 
   historyCard: {
-    borderRadius: 16, padding: 16, gap: 8,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12,
+    borderLeftWidth: 4,
+    backgroundColor: Colors.white,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
   },
-  historyCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  historyDate: { fontSize: 11, fontFamily: 'Poppins_400Regular', color: Colors.gray },
-  historyItemName: { fontSize: 14, fontFamily: 'Poppins_700Bold', color: Colors.primary },
-  historyMeta: { gap: 3 },
-  historyMetaTxt: { fontSize: 12, fontFamily: 'Poppins_400Regular', color: Colors.grayDark },
-  photoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  photoBadgeTxt: { fontSize: 11, fontFamily: 'Poppins_600SemiBold' },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  historyDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  historyBody: { flex: 1, gap: 2 },
+  historyItemName: { fontSize: 13, fontFamily: 'Poppins_600SemiBold', color: Colors.primary },
+  historyMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignItems: 'center' },
+  historyMetaTxt: { fontSize: 11, fontFamily: 'Poppins_400Regular', color: Colors.gray },
+  photoBadge: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  historyRight: { alignItems: 'flex-end', gap: 2, flexShrink: 0 },
+  historyQty: { fontSize: 16, fontFamily: 'Poppins_700Bold' },
+  historyDate: { fontSize: 10, fontFamily: 'Poppins_400Regular', color: Colors.gray },
 
   scannerContainer: { flex: 1, backgroundColor: '#000' },
   scannerTop: {
@@ -847,9 +913,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
   },
   scannerBadgeText: { fontSize: 11, fontFamily: 'Poppins_700Bold', color: '#FBBF24', letterSpacing: 1 },
-  scanFrame: {
-    position: 'absolute', top: '32%', left: '10%', right: '10%', height: 160,
-  },
+  scanFrame: { position: 'absolute', top: '32%', left: '10%', right: '10%', height: 160 },
   corner: { position: 'absolute', width: CORNER_SZ, height: CORNER_SZ, borderColor: Colors.accent },
   cTL: { top: 0, left: 0, borderTopWidth: CORNER_W, borderLeftWidth: CORNER_W },
   cTR: { top: 0, right: 0, borderTopWidth: CORNER_W, borderRightWidth: CORNER_W },
