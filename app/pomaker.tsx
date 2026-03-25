@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,20 @@ import {
   ScrollView,
   Platform,
   Alert,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Colors from '@/constants/colors';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+function genId() {
+  return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+}
 
 interface POItem {
   id: string;
@@ -33,66 +38,80 @@ export default function POmakerScreen() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [items, setItems] = useState<POItem[]>([]);
   const [manualBarcode, setManualBarcode] = useState('');
-  const lastScannedRef = useRef('');
+  const [duplicateId, setDuplicateId] = useState<string | null>(null);
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
 
-  const handleBarcodeScanned = ({ data }: { data: string }) => {
+  const barcodeInputRef = useRef<TextInput>(null);
+  const lastScannedRef = useRef('');
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  const triggerShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const processBarcode = useCallback(
+    (raw: string, fromScanner = false) => {
+      const code = raw.trim();
+      if (!code) return;
+
+      const duplicate = items.find(i => i.barcode === code);
+      if (duplicate) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setDuplicateId(duplicate.id);
+        triggerShake();
+        setTimeout(() => setDuplicateId(null), 2500);
+        if (!fromScanner) {
+          setManualBarcode('');
+          barcodeInputRef.current?.focus();
+        }
+        return;
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const newId = genId();
+      setItems(prev => [...prev, { id: newId, barcode: code, quantity: '1' }]);
+      setLastAddedId(newId);
+      setTimeout(() => setLastAddedId(null), 1500);
+      setManualBarcode('');
+      barcodeInputRef.current?.focus();
+    },
+    [items]
+  );
+
+  const handleBarcodeScanned = ({
+    type,
+    data,
+  }: {
+    type: string;
+    data: string;
+  }) => {
     if (data === lastScannedRef.current) return;
     lastScannedRef.current = data;
+    setTimeout(() => { lastScannedRef.current = ''; }, 2000);
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    const existing = items.find(i => i.barcode === data);
-    if (existing) {
-      setItems(prev => prev.map(i =>
-        i.barcode === data
-          ? { ...i, quantity: String(parseInt(i.quantity || '0') + 1) }
-          : i
-      ));
-    } else {
-      setItems(prev => [...prev, {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        barcode: data,
-        quantity: '1',
-      }]);
+    if (type !== 'code128') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert(
+        'Unsupported Barcode',
+        `Only Code 128 barcodes are supported.\nDetected: ${type.toUpperCase()}`,
+        [{ text: 'OK' }]
+      );
+      return;
     }
 
     setScannerOpen(false);
-    setTimeout(() => { lastScannedRef.current = ''; }, 2000);
-  };
-
-  const addManualBarcode = () => {
-    if (!manualBarcode.trim()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    const existing = items.find(i => i.barcode === manualBarcode.trim());
-    if (existing) {
-      setItems(prev => prev.map(i =>
-        i.barcode === manualBarcode.trim()
-          ? { ...i, quantity: String(parseInt(i.quantity || '0') + 1) }
-          : i
-      ));
-    } else {
-      setItems(prev => [...prev, {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        barcode: manualBarcode.trim(),
-        quantity: '1',
-      }]);
-    }
-    setManualBarcode('');
-  };
-
-  const updateQty = (id: string, value: string) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: value } : i));
-  };
-
-  const removeItem = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setItems(prev => prev.filter(i => i.id !== id));
+    processBarcode(data, true);
   };
 
   const openScanner = async () => {
     if (Platform.OS === 'web') {
-      Alert.alert('Not Available', 'Scanner is not available on web. Use manual entry.');
+      Alert.alert('Not Available', 'Camera scanner is not available on web. Use manual entry.');
       return;
     }
     if (!permission?.granted) {
@@ -106,28 +125,52 @@ export default function POmakerScreen() {
     setScannerOpen(true);
   };
 
-  const handleSave = async () => {
+  const updateQty = (id: string, value: string) => {
+    setItems(prev => prev.map(i => (i.id === id ? { ...i, quantity: value } : i)));
+  };
+
+  const removeItem = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const handleFinalSubmit = async () => {
     if (items.length === 0) {
-      Alert.alert('No Items', 'Please scan or add at least one item');
+      Alert.alert('No Items', 'Please scan or add at least one item first.');
       return;
     }
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    try {
-      const existing = await AsyncStorage.getItem('po_orders');
-      const orders = existing ? JSON.parse(existing) : [];
-      orders.push({
-        id: Date.now().toString(),
-        items,
-        createdAt: new Date().toISOString(),
-      });
-      await AsyncStorage.setItem('po_orders', JSON.stringify(orders));
-      Alert.alert('Success', 'Purchase order saved successfully', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
-    } catch (e) {
-      Alert.alert('Error', 'Failed to save purchase order');
-    }
+    Alert.alert(
+      'Submit & Start New',
+      `Save ${items.length} item(s) to history and start a fresh entry?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Submit',
+          onPress: async () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            try {
+              const existing = await AsyncStorage.getItem('po_history');
+              const history = existing ? JSON.parse(existing) : [];
+              history.unshift({
+                id: genId(),
+                items: [...items],
+                totalItems: items.length,
+                totalQty: items.reduce((s, i) => s + (parseInt(i.quantity) || 0), 0),
+                createdAt: new Date().toISOString(),
+              });
+              await AsyncStorage.setItem('po_history', JSON.stringify(history));
+              setItems([]);
+              setManualBarcode('');
+              barcodeInputRef.current?.focus();
+              Alert.alert('Saved', 'Entry saved to history. Ready for next PO.');
+            } catch {
+              Alert.alert('Error', 'Failed to save entry.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (scannerOpen) {
@@ -135,22 +178,37 @@ export default function POmakerScreen() {
       <View style={styles.scannerContainer}>
         <CameraView
           style={StyleSheet.absoluteFill}
-          barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'] }}
+          barcodeScannerSettings={{ barcodeTypes: ['code128'] }}
           onBarcodeScanned={handleBarcodeScanned}
         />
-        <View style={[styles.scannerOverlay, { paddingTop: insets.top + webTopInset + 12 }]}>
-          <Pressable onPress={() => setScannerOpen(false)} style={styles.scannerCloseBtn}>
-            <Ionicons name="close" size={28} color={Colors.white} />
+        <View
+          style={[
+            styles.scannerOverlay,
+            { paddingTop: insets.top + webTopInset + 12 },
+          ]}
+        >
+          <Pressable
+            onPress={() => setScannerOpen(false)}
+            style={styles.scannerCloseBtn}
+          >
+            <Ionicons name="close" size={24} color={Colors.white} />
           </Pressable>
+          <View style={styles.scannerLabelTop}>
+            <MaterialCommunityIcons name="barcode-scan" size={14} color="#FBBF24" />
+            <Text style={styles.scannerLabelTopText}>CODE 128 ONLY</Text>
+          </View>
         </View>
+
         <View style={styles.scannerFrame}>
-          <View style={styles.scannerCornerTL} />
-          <View style={styles.scannerCornerTR} />
-          <View style={styles.scannerCornerBL} />
-          <View style={styles.scannerCornerBR} />
+          <View style={[styles.corner, styles.cornerTL]} />
+          <View style={[styles.corner, styles.cornerTR]} />
+          <View style={[styles.corner, styles.cornerBL]} />
+          <View style={[styles.corner, styles.cornerBR]} />
+          <View style={styles.scanLine} />
         </View>
-        <View style={styles.scannerBottomLabel}>
-          <Text style={styles.scannerText}>Point camera at barcode</Text>
+
+        <View style={styles.scannerBottom}>
+          <Text style={styles.scannerHint}>Point camera at a Code 128 barcode</Text>
         </View>
       </View>
     );
@@ -159,244 +217,384 @@ export default function POmakerScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#6366F1', '#818CF8']}
+        colors={['#4F46E5', '#6366F1']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        end={{ x: 1, y: 0 }}
       >
-        <View style={[styles.headerContent, { paddingTop: insets.top + webTopInset + 12 }]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={Colors.white} />
+        <View
+          style={[
+            styles.headerContent,
+            { paddingTop: insets.top + webTopInset + 12 },
+          ]}
+        >
+          <Pressable onPress={() => router.back()} style={styles.headerBtn}>
+            <Ionicons name="arrow-back" size={20} color={Colors.white} />
           </Pressable>
-          <Text style={styles.headerTitle}>POMAKER</Text>
-          <Pressable onPress={handleSave} style={styles.saveBtn}>
-            <Ionicons name="checkmark" size={22} color={Colors.white} />
-          </Pressable>
+          <View style={styles.headerCenter}>
+            <MaterialCommunityIcons
+              name="file-document-edit-outline"
+              size={16}
+              color="rgba(255,255,255,0.8)"
+            />
+            <Text style={styles.headerTitle}>POMAKER</Text>
+          </View>
+          <View style={styles.headerItemCount}>
+            <Text style={styles.headerItemCountText}>{items.length}</Text>
+          </View>
         </View>
       </LinearGradient>
 
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + webBottomInset + 20 }]}
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + webBottomInset + 24 },
+        ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.scanCard}>
-          <Pressable
-            onPress={openScanner}
-            style={({ pressed }) => [styles.scanButton, pressed && styles.scanButtonPressed]}
-          >
+        <View style={styles.inputCard}>
+          <Pressable onPress={openScanner} style={styles.scanBtn}>
             <LinearGradient
-              colors={['#6366F1', '#818CF8']}
-              style={styles.scanButtonGradient}
+              colors={['#4F46E5', '#6366F1']}
+              style={styles.scanBtnGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name="scan-outline" size={36} color={Colors.white} />
-              <Text style={styles.scanButtonText}>Scan Barcode</Text>
+              <Ionicons name="scan" size={28} color={Colors.white} />
+              <Text style={styles.scanBtnText}>Tap to Scan</Text>
+              <Text style={styles.scanBtnSub}>Code 128 barcodes only</Text>
             </LinearGradient>
           </Pressable>
 
-          <View style={styles.orDivider}>
+          <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.orText}>OR</Text>
+            <Text style={styles.dividerText}>OR TYPE / USE PHYSICAL SCANNER</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          <View style={styles.manualRow}>
+          <Animated.View
+            style={[
+              styles.manualRow,
+              { transform: [{ translateX: shakeAnim }] },
+            ]}
+          >
             <TextInput
+              ref={barcodeInputRef}
               style={styles.manualInput}
-              placeholder="Enter barcode manually"
+              placeholder="Barcode"
               placeholderTextColor={Colors.grayLight}
               value={manualBarcode}
               onChangeText={setManualBarcode}
-              keyboardType="default"
-              onSubmitEditing={addManualBarcode}
+              autoFocus
               returnKeyType="done"
+              blurOnSubmit={false}
+              onSubmitEditing={() => processBarcode(manualBarcode)}
             />
-            <Pressable onPress={addManualBarcode} style={styles.manualAddBtn}>
+            <Pressable
+              onPress={() => processBarcode(manualBarcode)}
+              style={styles.manualAddBtn}
+            >
               <Ionicons name="add" size={22} color={Colors.white} />
             </Pressable>
-          </View>
+          </Animated.View>
+          <Text style={styles.physicalHint}>
+            Physical scanner? Just scan — barcode auto-fills here
+          </Text>
         </View>
 
         {items.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Scanned Items ({items.length})</Text>
+          <View style={styles.listCard}>
+            <View style={styles.listHeader}>
+              <Text style={styles.listTitle}>
+                Scanned Items
+              </Text>
+              <View style={styles.listBadge}>
+                <Text style={styles.listBadgeText}>{items.length}</Text>
+              </View>
+            </View>
 
-            {items.map((item, index) => (
-              <View key={item.id} style={styles.itemRow}>
-                <View style={styles.itemLeft}>
-                  <View style={styles.itemNumber}>
-                    <Text style={styles.itemNumberText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.itemInfo}>
-                    <View style={styles.barcodeRow}>
-                      <Ionicons name="barcode-outline" size={16} color="#6366F1" />
-                      <Text style={styles.barcodeText}>{item.barcode}</Text>
+            {items.map((item, index) => {
+              const isDup = duplicateId === item.id;
+              const isNew = lastAddedId === item.id;
+              return (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.itemRow,
+                    isDup && styles.itemRowDuplicate,
+                    isNew && styles.itemRowNew,
+                  ]}
+                >
+                  <View style={styles.itemLeft}>
+                    <View style={[styles.itemIndex, isDup && styles.itemIndexDup]}>
+                      {isDup ? (
+                        <Ionicons name="warning" size={13} color={Colors.danger} />
+                      ) : (
+                        <Text style={styles.itemIndexText}>{index + 1}</Text>
+                      )}
+                    </View>
+                    <View style={styles.itemInfo}>
+                      <View style={styles.barcodeRow}>
+                        <Ionicons
+                          name="barcode-outline"
+                          size={15}
+                          color={isDup ? Colors.danger : '#6366F1'}
+                        />
+                        <Text
+                          style={[
+                            styles.barcodeText,
+                            isDup && { color: Colors.danger },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.barcode}
+                        </Text>
+                      </View>
+                      {isDup && (
+                        <Text style={styles.duplicateLabel}>DUPLICATE</Text>
+                      )}
                     </View>
                   </View>
-                </View>
-                <View style={styles.itemRight}>
-                  <View style={styles.qtyBox}>
-                    <Text style={styles.qtyLabel}>QTY</Text>
-                    <TextInput
-                      style={styles.qtyInput}
-                      value={item.quantity}
-                      onChangeText={(v) => updateQty(item.id, v)}
-                      keyboardType="numeric"
-                      textAlign="center"
-                    />
+
+                  <View style={styles.itemRight}>
+                    <View style={styles.qtyBox}>
+                      <Text style={styles.qtyLabel}>QTY</Text>
+                      <TextInput
+                        style={styles.qtyInput}
+                        value={item.quantity}
+                        onChangeText={v => updateQty(item.id, v)}
+                        keyboardType="numeric"
+                        textAlign="center"
+                        onBlur={() => barcodeInputRef.current?.focus()}
+                      />
+                    </View>
+                    <Pressable
+                      onPress={() => removeItem(item.id)}
+                      style={styles.removeBtn}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                    </Pressable>
                   </View>
-                  <Pressable onPress={() => removeItem(item.id)} style={styles.removeBtn}>
-                    <Ionicons name="trash-outline" size={18} color={Colors.danger} />
-                  </Pressable>
                 </View>
-              </View>
-            ))}
+              );
+            })}
+          </View>
+        )}
+
+        {duplicateId && (
+          <View style={styles.dupAlert}>
+            <Ionicons name="alert-circle" size={16} color={Colors.danger} />
+            <Text style={styles.dupAlertText}>
+              Duplicate barcode — already in list
+            </Text>
           </View>
         )}
 
         {items.length === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="barcode-outline" size={48} color={Colors.grayLight} />
-            <Text style={styles.emptyTitle}>No items scanned</Text>
-            <Text style={styles.emptySub}>Scan a barcode or enter manually</Text>
+          <View style={styles.empty}>
+            <MaterialCommunityIcons
+              name="barcode-scan"
+              size={52}
+              color={Colors.grayLight}
+            />
+            <Text style={styles.emptyTitle}>No items yet</Text>
+            <Text style={styles.emptySub}>
+              Scan or type a Code 128 barcode above
+            </Text>
           </View>
+        )}
+
+        {items.length > 0 && (
+          <Pressable onPress={handleFinalSubmit} style={styles.submitBtn}>
+            <LinearGradient
+              colors={['#4F46E5', '#6366F1']}
+              style={styles.submitGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="checkmark-circle" size={20} color={Colors.white} />
+              <Text style={styles.submitText}>
+                Final Submit ({items.length} items)
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.6)" />
+            </LinearGradient>
+          </Pressable>
         )}
       </ScrollView>
     </View>
   );
 }
 
-const CORNER_SIZE = 24;
-const CORNER_WIDTH = 3;
+const CORNER = 22;
+const CW = 3;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.offWhite,
-  },
-  header: {
-    paddingBottom: 20,
-  },
+  container: { flex: 1, backgroundColor: Colors.offWhite },
+
+  header: { paddingBottom: 18 },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
   },
-  backBtn: {
+  headerBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontFamily: 'Poppins_700Bold',
     color: Colors.white,
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
-  saveBtn: {
-    width: 40,
+  headerItemCount: {
+    minWidth: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 8,
   },
-  scrollView: {
-    flex: 1,
+  headerItemCountText: {
+    fontSize: 16,
+    fontFamily: 'Poppins_700Bold',
+    color: Colors.white,
   },
-  scrollContent: {
-    padding: 20,
-    gap: 16,
-  },
-  scanCard: {
+
+  scroll: { flex: 1 },
+  scrollContent: { padding: 16, gap: 14 },
+
+  inputCard: {
     backgroundColor: Colors.white,
     borderRadius: 20,
-    padding: 20,
-    gap: 16,
+    padding: 18,
+    gap: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: 12,
     elevation: 3,
   },
-  scanButton: {
+
+  scanBtn: {
     borderRadius: 16,
     overflow: 'hidden',
   },
-  scanButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  scanButtonGradient: {
-    paddingVertical: 32,
+  scanBtnGradient: {
+    paddingVertical: 28,
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
-  scanButtonText: {
+  scanBtnText: {
     fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'Poppins_700Bold',
     color: Colors.white,
+    letterSpacing: 0.5,
   },
-  orDivider: {
+  scanBtnSub: {
+    fontSize: 11,
+    fontFamily: 'Poppins_400Regular',
+    color: 'rgba(255,255,255,0.65)',
+  },
+
+  divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   dividerLine: {
     flex: 1,
     height: 1,
     backgroundColor: Colors.offWhite,
   },
-  orText: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
+  dividerText: {
+    fontSize: 9,
+    fontFamily: 'Poppins_600SemiBold',
     color: Colors.gray,
+    letterSpacing: 0.8,
+    textAlign: 'center',
   },
+
   manualRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
   manualInput: {
     flex: 1,
-    backgroundColor: Colors.inputBg,
+    backgroundColor: Colors.offWhite,
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: Colors.primary,
+    minWidth: 0,
   },
   manualAddBtn: {
-    width: 48,
-    height: 48,
+    width: 46,
+    height: 46,
     borderRadius: 12,
     backgroundColor: '#6366F1',
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
-  card: {
+  physicalHint: {
+    fontSize: 11,
+    fontFamily: 'Poppins_400Regular',
+    color: Colors.gray,
+    textAlign: 'center',
+    marginTop: -6,
+  },
+
+  listCard: {
     backgroundColor: Colors.white,
     borderRadius: 20,
-    padding: 20,
-    gap: 12,
+    padding: 18,
+    gap: 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: 12,
     elevation: 3,
   },
-  cardTitle: {
-    fontSize: 15,
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  listTitle: {
+    fontSize: 14,
     fontFamily: 'Poppins_700Bold',
     color: Colors.primary,
-    marginBottom: 4,
   },
+  listBadge: {
+    backgroundColor: '#6366F1',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  listBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Poppins_700Bold',
+    color: Colors.white,
+  },
+
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -405,47 +603,72 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.offWhite,
   },
+  itemRowDuplicate: {
+    backgroundColor: 'rgba(239,68,68,0.04)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    marginHorizontal: -6,
+  },
+  itemRowNew: {
+    backgroundColor: 'rgba(99,102,241,0.05)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    marginHorizontal: -6,
+  },
   itemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     flex: 1,
+    minWidth: 0,
   },
-  itemNumber: {
+  itemIndex: {
     width: 28,
     height: 28,
     borderRadius: 8,
     backgroundColor: Colors.offWhite,
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
-  itemNumberText: {
-    fontSize: 12,
+  itemIndexDup: {
+    backgroundColor: 'rgba(239,68,68,0.1)',
+  },
+  itemIndexText: {
+    fontSize: 11,
     fontFamily: 'Poppins_600SemiBold',
     color: Colors.gray,
   },
   itemInfo: {
     flex: 1,
+    minWidth: 0,
   },
   barcodeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   barcodeText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Poppins_500Medium',
     color: Colors.primary,
+    flexShrink: 1,
   },
+  duplicateLabel: {
+    fontSize: 10,
+    fontFamily: 'Poppins_700Bold',
+    color: Colors.danger,
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+
   itemRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 0,
   },
-  qtyBox: {
-    alignItems: 'center',
-    gap: 2,
-  },
+  qtyBox: { alignItems: 'center', gap: 2 },
   qtyLabel: {
     fontSize: 9,
     fontFamily: 'Poppins_600SemiBold',
@@ -453,26 +676,43 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   qtyInput: {
-    width: 56,
-    backgroundColor: Colors.inputBg,
+    width: 52,
+    backgroundColor: Colors.offWhite,
     borderRadius: 10,
     paddingVertical: 8,
-    paddingHorizontal: 8,
-    fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 15,
+    fontFamily: 'Poppins_700Bold',
     color: Colors.primary,
   },
   removeBtn: {
     width: 32,
     height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderRadius: 9,
+    backgroundColor: 'rgba(239,68,68,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyState: {
+
+  dupAlert: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 60,
+    gap: 8,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.2)',
+  },
+  dupAlertText: {
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
+    color: Colors.danger,
+  },
+
+  empty: {
+    alignItems: 'center',
+    paddingVertical: 48,
     gap: 8,
   },
   emptyTitle: {
@@ -484,91 +724,111 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Poppins_400Regular',
     color: Colors.gray,
+    textAlign: 'center',
   },
-  scannerContainer: {
+
+  submitBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  submitGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 10,
+  },
+  submitText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_700Bold',
+    color: Colors.white,
+    letterSpacing: 0.5,
     flex: 1,
-    backgroundColor: '#000',
+    textAlign: 'center',
   },
+
+  scannerContainer: { flex: 1, backgroundColor: '#000' },
   scannerOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 10,
-    paddingHorizontal: 20,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingBottom: 12,
   },
   scannerCloseBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  scannerLabelTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  scannerLabelTopText: {
+    fontSize: 11,
+    fontFamily: 'Poppins_700Bold',
+    color: '#FBBF24',
+    letterSpacing: 1,
+  },
   scannerFrame: {
     position: 'absolute',
-    top: '30%',
-    left: '15%',
-    right: '15%',
-    height: 200,
+    top: '32%',
+    left: '10%',
+    right: '10%',
+    height: 160,
   },
-  scannerCornerTL: {
+  corner: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: CORNER_SIZE,
-    height: CORNER_SIZE,
-    borderTopWidth: CORNER_WIDTH,
-    borderLeftWidth: CORNER_WIDTH,
+    width: CORNER,
+    height: CORNER,
     borderColor: Colors.accent,
   },
-  scannerCornerTR: {
+  cornerTL: { top: 0, left: 0, borderTopWidth: CW, borderLeftWidth: CW },
+  cornerTR: { top: 0, right: 0, borderTopWidth: CW, borderRightWidth: CW },
+  cornerBL: { bottom: 0, left: 0, borderBottomWidth: CW, borderLeftWidth: CW },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: CW, borderRightWidth: CW },
+  scanLine: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: CORNER_SIZE,
-    height: CORNER_SIZE,
-    borderTopWidth: CORNER_WIDTH,
-    borderRightWidth: CORNER_WIDTH,
-    borderColor: Colors.accent,
+    left: 12,
+    right: 12,
+    top: '50%',
+    height: 2,
+    backgroundColor: Colors.accent,
+    opacity: 0.7,
   },
-  scannerCornerBL: {
+  scannerBottom: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: CORNER_SIZE,
-    height: CORNER_SIZE,
-    borderBottomWidth: CORNER_WIDTH,
-    borderLeftWidth: CORNER_WIDTH,
-    borderColor: Colors.accent,
-  },
-  scannerCornerBR: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: CORNER_SIZE,
-    height: CORNER_SIZE,
-    borderBottomWidth: CORNER_WIDTH,
-    borderRightWidth: CORNER_WIDTH,
-    borderColor: Colors.accent,
-  },
-  scannerBottomLabel: {
-    position: 'absolute',
-    bottom: '20%',
+    bottom: '15%',
     left: 0,
     right: 0,
     alignItems: 'center',
   },
-  scannerText: {
-    fontSize: 16,
+  scannerHint: {
+    fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: Colors.white,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 20,
     overflow: 'hidden',
   },
 });
