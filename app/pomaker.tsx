@@ -414,11 +414,10 @@ export default function POmakerScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Ionicons name="checkmark-circle" size={20} color={Colors.white} />
+              <Ionicons name="checkmark-circle" size={22} color={Colors.white} />
               <Text style={styles.submitText}>
-                Final Submit ({items.length} items)
+                Final Submit  ·  {items.length} item{items.length !== 1 ? 's' : ''}
               </Text>
-              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.6)" />
             </LinearGradient>
           </Pressable>
         )}
@@ -668,19 +667,20 @@ const styles = StyleSheet.create({
     gap: 8,
     flexShrink: 0,
   },
-  qtyBox: { alignItems: 'center', gap: 2 },
+  qtyBox: { alignItems: 'center', gap: 4 },
   qtyLabel: {
     fontSize: 9,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'Poppins_700Bold',
     color: Colors.gray,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
   qtyInput: {
-    width: 52,
+    width: 68,
     backgroundColor: Colors.offWhite,
     borderRadius: 10,
-    paddingVertical: 8,
-    fontSize: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    fontSize: 16,
     fontFamily: 'Poppins_700Bold',
     color: Colors.primary,
   },
@@ -748,8 +748,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: Colors.white,
     letterSpacing: 0.5,
-    flex: 1,
-    textAlign: 'center',
   },
 
   scannerContainer: { flex: 1, backgroundColor: '#000' },

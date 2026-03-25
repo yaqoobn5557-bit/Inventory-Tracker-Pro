@@ -5,14 +5,13 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
@@ -22,35 +21,34 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
+  const [focused, setFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isValidEmail = (e: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-  };
+  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+
+  const isValid = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
   const handleLogin = async () => {
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email address');
       return;
     }
-    if (!isValidEmail(email.trim())) {
+    if (!isValid(email.trim())) {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
-
     try {
       setIsSubmitting(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await login(email.trim().toLowerCase());
       router.replace('/store-select');
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   return (
     <View style={styles.container}>
@@ -61,37 +59,39 @@ export default function LoginScreen() {
         end={{ x: 1, y: 1 }}
       />
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={[styles.topSection, { paddingTop: insets.top + webTopInset + 60 }]}>
-          <View style={styles.logoRow}>
-            <LinearGradient
-              colors={[Colors.accent, Colors.accentLight]}
-              style={styles.logoGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="clipboard-outline" size={28} color={Colors.white} />
-            </LinearGradient>
-            <View>
-              <Text style={styles.logoText}>InvenTrack <Text style={styles.logoAccent}>Pro</Text></Text>
-            </View>
-          </View>
-
-          <Text style={styles.welcomeTitle}>Welcome Back</Text>
-          <Text style={styles.welcomeSubtitle}>Sign in with your email to continue</Text>
+      <View style={[styles.topSection, { paddingTop: insets.top + webTopInset + 60 }]}>
+        <View style={styles.logoRow}>
+          <LinearGradient
+            colors={[Colors.accent, Colors.accentLight]}
+            style={styles.logoBg}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons name="clipboard-outline" size={26} color={Colors.white} />
+          </LinearGradient>
+          <Text style={styles.logoText}>
+            InvenTrack <Text style={{ color: Colors.accent }}>Pro</Text>
+          </Text>
         </View>
+        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.subtitle}>Sign in with your email to continue</Text>
+      </View>
 
-        <View style={[styles.formSection, { paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 20 }]}>
-          <View style={styles.card}>
-            <Text style={styles.inputLabel}>Email Address</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color={Colors.gray} style={styles.inputIcon} />
+      <View style={[styles.formSection, { paddingBottom: insets.bottom + webBottomInset + 24 }]}>
+        <View style={styles.card}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+            <View style={[styles.inputBox, focused && styles.inputBoxFocused]}>
+              <View style={styles.inputIconWrap}>
+                <Ionicons
+                  name="mail-outline"
+                  size={18}
+                  color={focused ? Colors.accent : Colors.gray}
+                />
+              </View>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your email"
+                placeholder="you@example.com"
                 placeholderTextColor={Colors.grayLight}
                 value={email}
                 onChangeText={setEmail}
@@ -100,64 +100,69 @@ export default function LoginScreen() {
                 autoCorrect={false}
                 autoComplete="email"
                 editable={!isSubmitting}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                onSubmitEditing={handleLogin}
+                returnKeyType="go"
               />
+              {email.length > 0 && isValid(email) && (
+                <View style={styles.validIcon}>
+                  <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+                </View>
+              )}
             </View>
-
-            <Pressable
-              onPress={handleLogin}
-              disabled={isSubmitting}
-              style={({ pressed }) => [
-                styles.loginButton,
-                pressed && styles.loginButtonPressed,
-                isSubmitting && styles.loginButtonDisabled,
-              ]}
-            >
-              <LinearGradient
-                colors={isSubmitting ? [Colors.gray, Colors.gray] : [Colors.accent, Colors.accentLight]}
-                style={styles.loginButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator color={Colors.white} />
-                ) : (
-                  <>
-                    <Text style={styles.loginButtonText}>Sign In</Text>
-                    <Ionicons name="arrow-forward" size={20} color={Colors.white} />
-                  </>
-                )}
-              </LinearGradient>
-            </Pressable>
           </View>
 
-          <Text style={styles.footerText}>
-            Rimal HungerStation Inventory System
-          </Text>
+          <Pressable
+            onPress={handleLogin}
+            disabled={isSubmitting}
+            style={({ pressed }) => [
+              styles.loginBtn,
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+              isSubmitting && { opacity: 0.7 },
+            ]}
+          >
+            <LinearGradient
+              colors={isSubmitting ? [Colors.gray, Colors.gray] : [Colors.accent, '#FF8C5A']}
+              style={styles.loginBtnGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color={Colors.white} />
+              ) : (
+                <>
+                  <Text style={styles.loginBtnText}>Sign In</Text>
+                  <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+                </>
+              )}
+            </LinearGradient>
+          </Pressable>
         </View>
-      </KeyboardAvoidingView>
+
+        <View style={styles.footer}>
+          <MaterialCommunityIcons name="store" size={13} color="rgba(255,255,255,0.3)" />
+          <Text style={styles.footerText}>Rimal HungerStation Inventory System</Text>
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
+  container: { flex: 1, justifyContent: 'space-between' },
+
   topSection: {
     paddingHorizontal: 28,
-    gap: 16,
+    gap: 12,
   },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 40,
+    marginBottom: 36,
   },
-  logoGradient: {
+  logoBg: {
     width: 48,
     height: 48,
     borderRadius: 14,
@@ -165,23 +170,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoText: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: 'Poppins_700Bold',
     color: Colors.white,
   },
-  logoAccent: {
-    color: Colors.accent,
-  },
-  welcomeTitle: {
-    fontSize: 32,
+  title: {
+    fontSize: 34,
     fontFamily: 'Poppins_700Bold',
     color: Colors.white,
+    lineHeight: 40,
   },
-  welcomeSubtitle: {
-    fontSize: 15,
+  subtitle: {
+    fontSize: 14,
     fontFamily: 'Poppins_400Regular',
-    color: Colors.grayLight,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 4,
   },
+
   formSection: {
     paddingHorizontal: 20,
     gap: 20,
@@ -189,68 +194,80 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.white,
     borderRadius: 24,
-    padding: 24,
-    gap: 16,
+    padding: 22,
+    gap: 18,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 28,
+    elevation: 10,
   },
-  inputLabel: {
-    fontSize: 13,
-    fontFamily: 'Poppins_600SemiBold',
-    color: Colors.grayDark,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+
+  fieldGroup: { gap: 10 },
+  fieldLabel: {
+    fontSize: 11,
+    fontFamily: 'Poppins_700Bold',
+    color: Colors.gray,
+    letterSpacing: 1.5,
   },
-  inputWrapper: {
+  inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.inputBg,
+    backgroundColor: Colors.offWhite,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: 'transparent',
+    overflow: 'hidden',
   },
-  inputIcon: {
-    paddingLeft: 16,
+  inputBoxFocused: {
+    borderColor: Colors.accent,
+    backgroundColor: '#FFF8F5',
+  },
+  inputIconWrap: {
+    width: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
     paddingVertical: 16,
-    paddingHorizontal: 12,
-    fontSize: 16,
+    paddingRight: 14,
+    fontSize: 15,
     fontFamily: 'Poppins_400Regular',
     color: Colors.primary,
+    minWidth: 0,
   },
-  loginButton: {
+  validIcon: {
+    paddingRight: 14,
+  },
+
+  loginBtn: {
     borderRadius: 14,
     overflow: 'hidden',
-    marginTop: 4,
   },
-  loginButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  loginButtonDisabled: {
-    opacity: 0.7,
-  },
-  loginButtonGradient: {
+  loginBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 17,
     gap: 8,
   },
-  loginButtonText: {
+  loginBtnText: {
     fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'Poppins_700Bold',
     color: Colors.white,
+    letterSpacing: 0.5,
+  },
+
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   footerText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Poppins_400Regular',
-    color: 'rgba(255,255,255,0.4)',
-    textAlign: 'center',
+    color: 'rgba(255,255,255,0.35)',
   },
 });
