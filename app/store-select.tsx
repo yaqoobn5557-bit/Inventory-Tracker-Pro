@@ -49,18 +49,22 @@ export default function StoreSelectScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <View style={[styles.headerContent, { paddingTop: insets.top + webTopInset + 16 }]}>
+        <View style={[styles.headerContent, { paddingTop: insets.top + webTopInset + 10 }]}>
           <View style={styles.headerRow}>
-            <Pressable onPress={handleLogout} style={styles.logoutBtn}>
-              <Ionicons name="log-out-outline" size={22} color={Colors.white} />
-            </Pressable>
-            <View style={styles.userBadge}>
-              <Ionicons name="person-circle-outline" size={18} color={Colors.accent} />
-              <Text style={styles.userEmail} numberOfLines={1}>{userEmail}</Text>
+            <View style={styles.headerLeft}>
+              <MaterialCommunityIcons name="store" size={15} color={Colors.accent} />
+              <Text style={styles.headerTitle}>SELECT STORE</Text>
+            </View>
+            <View style={styles.headerRight}>
+              <View style={styles.userBadge}>
+                <Ionicons name="person-circle-outline" size={15} color={Colors.accent} />
+                <Text style={styles.userEmail} numberOfLines={1}>{userEmail}</Text>
+              </View>
+              <Pressable onPress={handleLogout} style={styles.logoutBtn}>
+                <Ionicons name="log-out-outline" size={18} color={Colors.white} />
+              </Pressable>
             </View>
           </View>
-          <Text style={styles.headerTitle}>Select Your Store</Text>
-          <Text style={styles.headerSubtitle}>Choose a store to manage inventory</Text>
         </View>
       </LinearGradient>
 
@@ -109,22 +113,31 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.offWhite,
   },
   headerGradient: {
-    paddingBottom: 32,
+    paddingBottom: 14,
   },
   headerContent: {
-    paddingHorizontal: 24,
-    gap: 8,
+    paddingHorizontal: 18,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    paddingVertical: 10,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   logoutBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -132,33 +145,29 @@ const styles = StyleSheet.create({
   userBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 20,
-    maxWidth: 200,
+    maxWidth: 180,
   },
   userEmail: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Poppins_500Medium',
     color: Colors.grayLight,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 13,
     fontFamily: 'Poppins_700Bold',
     color: Colors.white,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    color: Colors.grayLight,
+    letterSpacing: 1.5,
   },
   storeList: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 24,
-    gap: 16,
+    paddingTop: 20,
+    gap: 14,
   },
   storeCard: {
     flexDirection: 'row',

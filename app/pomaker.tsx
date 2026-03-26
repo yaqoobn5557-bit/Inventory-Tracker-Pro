@@ -493,9 +493,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   scanBtnGradient: {
-    paddingVertical: 28,
+    paddingVertical: 16,
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   scanBtnText: {
     fontSize: 16,
@@ -673,6 +673,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: Colors.gray,
     letterSpacing: 1.2,
+    textAlign: 'center',
   },
   qtyInput: {
     width: 68,
@@ -683,6 +684,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_700Bold',
     color: Colors.primary,
+    textAlign: 'center',
+    textAlignVertical: 'center',
   },
   removeBtn: {
     width: 32,

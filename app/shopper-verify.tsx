@@ -232,13 +232,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.offWhite,
   },
   header: {
-    paddingBottom: 20,
+    paddingBottom: 12,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 6,
   },
   backBtn: {
     width: 40,
