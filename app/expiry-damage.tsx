@@ -381,7 +381,6 @@ export default function ExpiryDamageScreen() {
                 ))}
               </View>
             </View>
-
             {filteredHistory.length === 0 ? (
               <View style={styles.historyEmpty}>
                 <Ionicons name="time-outline" size={32} color={Colors.grayLight} />
@@ -550,4 +549,385 @@ function EntryCard({
 
       {isDsDc && (
         <View style={styles.fieldGroup}>
-          <Vie
+          <View style={styles.photoFieldHeader}>
+            <Text style={styles.fieldLabel}>PHOTOS (MIN 1 REQUIRED)</Text>
+            <Text style={styles.photoCountTxt}>{entry.photos.length}/100</Text>
+          </View>
+          {entry.photos.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+              {entry.photos.map(uri => (
+                <View key={uri} style={styles.photoThumb}>
+                  <Image source={{ uri }} style={styles.photoImg} />
+                  <Pressable onPress={() => onPhotoRemove(uri)} style={styles.photoRemove}>
+                    <Ionicons name="close" size={11} color="#fff" />
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+          <Pressable onPress={onPhotoPick} style={[styles.photoBtn, { borderColor: color }]}>
+            <Ionicons name="camera-outline" size={16} color={color} />
+            <Text style={[styles.photoBtnText, { color }]}>{entry.photos.length === 0 ? 'Add Photo' : 'Add More'}</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {(isSupplier || isNew) && (
+        <>
+          <Pressable
+            onPress={() => { setExpiryOpen(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            style={[styles.optToggleRow, { borderColor: color + '50' }]}
+          >
+            <View style={[styles.optToggleIcon, { backgroundColor: color + '20' }]}>
+              <Ionicons name="calendar-outline" size={15} color={color} />
+            </View>
+            <Text style={[styles.optToggleLabel, { color }]}>
+              {expiryOpen ? 'Hide Expiry Date' : 'Add Expiry Date'}
+            </Text>
+            <Ionicons name={expiryOpen ? 'chevron-up' : 'chevron-down'} size={16} color={color} />
+          </Pressable>
+
+          {expiryOpen && (
+            <View style={[styles.expiryBlockInner, { borderColor: color + '40' }]}>
+              <View style={styles.twoCol}>
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>EXPIRY DATE</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="DD/MM/YYYY"
+                    placeholderTextColor={Colors.grayLight}
+                    value={entry.expiryDate}
+                    onChangeText={v => onChange({ expiryDate: v })}
+                  />
+                </View>
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>REMAINING DAYS</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="Days"
+                    placeholderTextColor={Colors.grayLight}
+                    value={entry.remainingDays}
+                    onChangeText={v => onChange({ remainingDays: v })}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {isNew && (
+            <>
+              <Pressable
+                onPress={() => { setPhotosOpen(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                style={[styles.optToggleRow, { borderColor: color + '50' }]}
+              >
+                <View style={[styles.optToggleIcon, { backgroundColor: color + '20' }]}>
+                  <Ionicons name="camera-outline" size={15} color={color} />
+                </View>
+                <Text style={[styles.optToggleLabel, { color }]}>
+                  {photosOpen
+                    ? (entry.photos.length > 0 ? `Hide Photos (${entry.photos.length})` : 'Hide Photos')
+                    : 'Add Photos'}
+                </Text>
+                <Ionicons name={photosOpen ? 'chevron-up' : 'chevron-down'} size={16} color={color} />
+              </Pressable>
+
+              {photosOpen && (
+                <View style={styles.fieldGroup}>
+                  <View style={styles.photoFieldHeader}>
+                    <Text style={styles.fieldLabel}>PHOTOS (OPTIONAL)</Text>
+                    <Text style={styles.photoCountTxt}>{entry.photos.length}/100</Text>
+                  </View>
+                  {entry.photos.length > 0 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+                      {entry.photos.map(uri => (
+                        <View key={uri} style={styles.photoThumb}>
+                          <Image source={{ uri }} style={styles.photoImg} />
+                          <Pressable onPress={() => onPhotoRemove(uri)} style={styles.photoRemove}>
+                            <Ionicons name="close" size={11} color="#fff" />
+                          </Pressable>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  )}
+                  <Pressable onPress={onPhotoPick} style={[styles.photoBtn, { borderColor: color }]}>
+                    <Ionicons name="camera-outline" size={16} color={color} />
+                    <Text style={[styles.photoBtnText, { color }]}>{entry.photos.length === 0 ? 'Add Photo' : 'Add More'}</Text>
+                  </Pressable>
+                </View>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      <Pressable onPress={onSubmit} disabled={isSaving} style={styles.submitBtn}>
+        <LinearGradient
+          colors={[color, color + 'CC']}
+          style={styles.submitGrad}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <Ionicons name="checkmark-circle" size={18} color="#fff" />
+          <Text style={styles.submitTxt}>Submit Entry</Text>
+        </LinearGradient>
+      </Pressable>
+    </View>
+  );
+}
+
+function HistoryCard({ item }: { item: HistoryItem }) {
+  const color = POLICY_COLOR[item.policy];
+  const cardBg = POLICY_CARD_BG[item.policy];
+  return (
+    <View style={[styles.historyCard, { backgroundColor: cardBg, borderLeftColor: color }]}>
+      <View style={styles.historyRow}>
+        <View style={[styles.historyDot, { backgroundColor: color }]} />
+        <View style={styles.historyBody}>
+          <Text style={styles.historyItemName} numberOfLines={1}>{item.itemName}</Text>
+          <View style={styles.historyMeta}>
+            <Text style={styles.historyMetaTxt}>{item.barcode}</Text>
+            {item.reason ? <Text style={styles.historyMetaTxt}>· {item.reason}</Text> : null}
+            {item.expiryDate ? <Text style={styles.historyMetaTxt}>· Exp {item.expiryDate}</Text> : null}
+            {item.photoCount > 0 ? (
+              <View style={styles.photoBadge}>
+                <Text style={styles.historyMetaTxt}>·</Text>
+                <Ionicons name="camera" size={10} color={color} />
+                <Text style={[styles.historyMetaTxt, { color }]}>{item.photoCount}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+        <View style={styles.historyRight}>
+          <Text style={[styles.historyQty, { color }]}>{item.qty}</Text>
+          <Text style={styles.historyDate}>{fmtDateTime(item.createdAt)}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const CORNER_SZ = 20;
+const CORNER_W = 3;
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.offWhite },
+
+  header: { paddingBottom: 14 },
+  headerRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', paddingHorizontal: 18,
+    paddingBottom: 10,
+  },
+  headerBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerTitle: { fontSize: 15, fontFamily: 'Poppins_700Bold', color: '#fff', letterSpacing: 1.5 },
+
+  scroll: { flex: 1 },
+  scrollContent: { padding: 16, gap: 14 },
+
+  scanInputCard: {
+    backgroundColor: Colors.white, borderRadius: 20, padding: 18, gap: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 12, elevation: 3,
+  },
+  camBtn: { borderRadius: 14, overflow: 'hidden' },
+  camBtnGrad: { paddingVertical: 16, alignItems: 'center', gap: 5 },
+  camBtnText: { fontSize: 15, fontFamily: 'Poppins_700Bold', color: '#fff', letterSpacing: 0.5 },
+  orRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  orLine: { flex: 1, height: 1, backgroundColor: Colors.offWhite },
+  orTxt: { fontSize: 9, fontFamily: 'Poppins_600SemiBold', color: Colors.gray, letterSpacing: 0.8 },
+  barcodeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  barcodeInput: {
+    flex: 1, minWidth: 0,
+    backgroundColor: Colors.offWhite, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 14, fontFamily: 'Poppins_400Regular', color: Colors.primary,
+  },
+  barcodeAddBtn: {
+    width: 46, height: 46, borderRadius: 12,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
+  },
+
+  entryCard: {
+    borderRadius: 20, padding: 18, gap: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1, shadowRadius: 14, elevation: 5,
+  },
+  entryTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  policyBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+  },
+  policyDot: { width: 7, height: 7, borderRadius: 4 },
+  policyBadgeText: { fontSize: 11, fontFamily: 'Poppins_700Bold', letterSpacing: 0.8 },
+  barcodeTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.06)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+  },
+  barcodeTagText: { fontSize: 11, fontFamily: 'Poppins_500Medium', color: Colors.grayDark },
+
+  itemInfoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  itemInfoBlock: { flex: 1 },
+  itemName: { fontSize: 15, fontFamily: 'Poppins_700Bold', color: Colors.primary },
+  itemSku: { fontSize: 12, fontFamily: 'Poppins_400Regular', color: Colors.gray, marginTop: 2 },
+  policyChangePill: { gap: 4, alignItems: 'flex-end' },
+  policyChangeLabel: { fontSize: 9, fontFamily: 'Poppins_600SemiBold', color: Colors.gray, letterSpacing: 0.8 },
+  policyToggleMini: {
+    flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 8, padding: 2, gap: 2,
+  },
+  policyToggleMiniBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, alignItems: 'center' },
+  policyToggleMiniTxt: { fontSize: 10, fontFamily: 'Poppins_700Bold', color: Colors.gray },
+
+  fieldGroup: { gap: 8 },
+  fieldLabel: {
+    fontSize: 10, fontFamily: 'Poppins_700Bold',
+    color: Colors.gray, letterSpacing: 1.5, textTransform: 'uppercase',
+  },
+  fieldInput: {
+    backgroundColor: Colors.white, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 14, fontFamily: 'Poppins_400Regular', color: Colors.primary,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  },
+
+  policyToggle: {
+    flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 12, padding: 4, gap: 4,
+  },
+  policyToggleBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  policyToggleTxt: { fontSize: 12, fontFamily: 'Poppins_700Bold', color: Colors.gray },
+
+  reasonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  reasonBtn: {
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1.5, borderColor: Colors.grayLight,
+    backgroundColor: Colors.white,
+  },
+  reasonBtnText: { fontSize: 12, fontFamily: 'Poppins_600SemiBold', color: Colors.grayDark },
+
+  expiryBlockInner: {
+    backgroundColor: Colors.white, borderRadius: 14, padding: 14,
+    gap: 10, borderWidth: 1,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  },
+  twoCol: { flexDirection: 'row', gap: 10 },
+
+  optToggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 11, paddingHorizontal: 14,
+    backgroundColor: Colors.white, borderRadius: 12,
+    borderWidth: 1.5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  },
+  optToggleIcon: {
+    width: 28, height: 28, borderRadius: 8,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  optToggleLabel: { flex: 1, fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
+
+  photoFieldHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  photoCountTxt: { fontSize: 12, fontFamily: 'Poppins_600SemiBold', color: Colors.gray },
+  photoRow: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
+  photoThumb: { width: 70, height: 70, borderRadius: 10 },
+  photoImg: { width: 70, height: 70, borderRadius: 10, backgroundColor: Colors.offWhite },
+  photoRemove: {
+    position: 'absolute', top: -5, right: -5,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: Colors.danger, justifyContent: 'center', alignItems: 'center',
+  },
+  photoBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 12, borderRadius: 12,
+    borderWidth: 1.5, borderStyle: 'dashed',
+    backgroundColor: Colors.white,
+  },
+  photoBtnText: { fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
+
+  submitBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
+  submitGrad: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 16, gap: 8,
+  },
+  submitTxt: { fontSize: 15, fontFamily: 'Poppins_700Bold', color: '#fff', letterSpacing: 0.5 },
+
+  historySection: { gap: 10 },
+  historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  historyTitle: { fontSize: 12, fontFamily: 'Poppins_700Bold', color: Colors.gray, letterSpacing: 2 },
+  dateFilters: { flexDirection: 'row', gap: 6 },
+  filterBtn: {
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
+    backgroundColor: Colors.white,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
+  filterBtnActive: { backgroundColor: '#EF4444' },
+  filterBtnText: { fontSize: 11, fontFamily: 'Poppins_600SemiBold', color: Colors.gray },
+  filterBtnTextActive: { color: '#fff' },
+
+  historyEmpty: { alignItems: 'center', paddingVertical: 32, gap: 8 },
+  historyEmptyText: { fontSize: 13, fontFamily: 'Poppins_400Regular', color: Colors.gray },
+
+  historyCard: {
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+  },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  historyDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  historyBody: { flex: 1, gap: 2 },
+  historyItemName: { fontSize: 13, fontFamily: 'Poppins_600SemiBold', color: Colors.primary },
+  historyMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignItems: 'center' },
+  historyMetaTxt: { fontSize: 11, fontFamily: 'Poppins_400Regular', color: Colors.gray },
+  photoBadge: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  historyRight: { alignItems: 'flex-end', gap: 2, flexShrink: 0 },
+  historyQty: { fontSize: 16, fontFamily: 'Poppins_700Bold' },
+  historyDate: { fontSize: 10, fontFamily: 'Poppins_400Regular', color: Colors.gray },
+
+  scannerContainer: { flex: 1, backgroundColor: '#000' },
+  scannerTop: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 18, paddingBottom: 12,
+  },
+  scannerClose: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  scannerBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+  },
+  scannerBadgeText: { fontSize: 11, fontFamily: 'Poppins_700Bold', color: '#FBBF24', letterSpacing: 1 },
+  scanFrame: { position: 'absolute', top: '32%', left: '10%', right: '10%', height: 160 },
+  corner: { position: 'absolute', width: CORNER_SZ, height: CORNER_SZ, borderColor: Colors.accent },
+  cTL: { top: 0, left: 0, borderTopWidth: CORNER_W, borderLeftWidth: CORNER_W },
+  cTR: { top: 0, right: 0, borderTopWidth: CORNER_W, borderRightWidth: CORNER_W },
+  cBL: { bottom: 0, left: 0, borderBottomWidth: CORNER_W, borderLeftWidth: CORNER_W },
+  cBR: { bottom: 0, right: 0, borderBottomWidth: CORNER_W, borderRightWidth: CORNER_W },
+  scanLine: {
+    position: 'absolute', left: 12, right: 12, top: '50%',
+    height: 2, backgroundColor: Colors.accent, opacity: 0.8,
+  },
+  scannerHintBox: { position: 'absolute', bottom: '15%', left: 0, right: 0, alignItems: 'center' },
+  scannerHintText: {
+    fontSize: 14, fontFamily: 'Poppins_500Medium', color: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, overflow: 'hidden',
+  },
+});
