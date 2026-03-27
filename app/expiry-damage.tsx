@@ -16,6 +16,8 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Colors from '@/constants/colors';
+import { useSettings } from '@/lib/settings-context';
+import translations from '@/constants/translations';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -127,6 +129,8 @@ function fmtDateTime(iso: string) {
 
 export default function ExpiryDamageScreen() {
   const insets = useSafeAreaInsets();
+  const { colors, language } = useSettings();
+  const t = translations[language];
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
@@ -283,7 +287,7 @@ export default function ExpiryDamageScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <LinearGradient
         colors={['#EF4444', '#DC2626']}
         style={styles.header}
@@ -303,7 +307,7 @@ export default function ExpiryDamageScreen() {
           <View style={styles.headerCenter}>
             <Ionicons name="alert-circle-outline" size={16} color="rgba(255,255,255,0.8)" />
             <Text style={styles.headerTitle}>
-              {entry ? 'ITEM ENTRY' : 'EXPIRY / DAMAGE'}
+              {entry ? 'ITEM ENTRY' : t.expiry_damage.toUpperCase()}
             </Text>
           </View>
           <View style={{ width: 40 }} />
@@ -333,22 +337,22 @@ export default function ExpiryDamageScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.scanInputCard}>
+          <View style={[styles.scanInputCard, { backgroundColor: colors.card }]}>
             <Pressable onPress={openScanner} style={styles.camBtn}>
               <LinearGradient colors={['#EF4444', '#F87171']} style={styles.camBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <Ionicons name="scan" size={26} color="#fff" />
-                <Text style={styles.camBtnText}>Tap to Scan</Text>
+                <Text style={styles.camBtnText}>{t.tap_to_scan}</Text>
               </LinearGradient>
             </Pressable>
             <View style={styles.orRow}>
-              <View style={styles.orLine} />
-              <Text style={styles.orTxt}>OR ENTER / PHYSICAL SCANNER</Text>
-              <View style={styles.orLine} />
+              <View style={[styles.orLine, { backgroundColor: colors.divider }]} />
+              <Text style={[styles.orTxt, { color: colors.subtext }]}>{t.or_manual}</Text>
+              <View style={[styles.orLine, { backgroundColor: colors.divider }]} />
             </View>
             <View style={styles.barcodeRow}>
               <TextInput
                 ref={barcodeRef}
-                style={styles.barcodeInput}
+                style={[styles.barcodeInput, { backgroundColor: colors.inputBg, color: colors.text }]}
                 placeholder="Scan or type barcode"
                 placeholderTextColor={Colors.grayLight}
                 value={barcodeInput}
@@ -366,15 +370,15 @@ export default function ExpiryDamageScreen() {
 
           <View style={styles.historySection}>
             <View style={styles.historyHeader}>
-              <Text style={styles.historyTitle}>HISTORY</Text>
+              <Text style={[styles.historyTitle, { color: colors.subtext }]}>{t.history.toUpperCase()}</Text>
               <View style={styles.dateFilters}>
                 {(['today', 'week', 'all'] as DateFilter[]).map(f => (
                   <Pressable
                     key={f}
                     onPress={() => setDateFilter(f)}
-                    style={[styles.filterBtn, dateFilter === f && styles.filterBtnActive]}
+                    style={[styles.filterBtn, { backgroundColor: colors.card }, dateFilter === f && styles.filterBtnActive]}
                   >
-                    <Text style={[styles.filterBtnText, dateFilter === f && styles.filterBtnTextActive]}>
+                    <Text style={[styles.filterBtnText, { color: colors.subtext }, dateFilter === f && styles.filterBtnTextActive]}>
                       {f === 'today' ? 'Today' : f === 'week' ? 'Week' : 'All'}
                     </Text>
                   </Pressable>
@@ -384,7 +388,7 @@ export default function ExpiryDamageScreen() {
             {filteredHistory.length === 0 ? (
               <View style={styles.historyEmpty}>
                 <Ionicons name="time-outline" size={32} color={Colors.grayLight} />
-                <Text style={styles.historyEmptyText}>No records for this period</Text>
+                <Text style={[styles.historyEmptyText, { color: colors.subtext }]}>{t.no_history}</Text>
               </View>
             ) : (
               filteredHistory.map(h => <HistoryCard key={h.id} item={h} />)
@@ -406,6 +410,7 @@ function EntryCard({
   onSubmit: () => void;
   isSaving: boolean;
 }) {
+  const { colors } = useSettings();
   const [expiryOpen, setExpiryOpen] = useState(false);
   const [photosOpen, setPhotosOpen] = useState(false);
 
@@ -423,44 +428,28 @@ function EntryCard({
           <View style={[styles.policyDot, { backgroundColor: color }]} />
           <Text style={[styles.policyBadgeText, { color }]}>{POLICY_LABEL[entry.policy]}</Text>
         </View>
-        <View style={styles.barcodeTag}>
-          <Ionicons name="barcode-outline" size={13} color={Colors.gray} />
-          <Text style={styles.barcodeTagText}>{entry.barcode}</Text>
+        <View style={[styles.barcodeTag, { backgroundColor: colors.inputBg }]}>
+          <Ionicons name="barcode-outline" size={13} color={colors.subtext} />
+          <Text style={[styles.barcodeTagText, { color: colors.subtext }]}>{entry.barcode}</Text>
         </View>
       </View>
 
       {isNew ? (
         <>
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>ITEM NAME</Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder="Enter item name"
-              placeholderTextColor={Colors.grayLight}
-              value={entry.itemName}
-              onChangeText={v => onChange({ itemName: v })}
-            />
+            <Text style={[styles.fieldLabel, { color: colors.subtext }]}>ITEM NAME</Text>
+            <TextInput style={[styles.fieldInput, { backgroundColor: colors.card, color: colors.text }]} placeholder="Enter item name" placeholderTextColor={Colors.grayLight} value={entry.itemName} onChangeText={v => onChange({ itemName: v })} />
           </View>
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>SKU</Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder="Enter SKU"
-              placeholderTextColor={Colors.grayLight}
-              value={entry.sku}
-              onChangeText={v => onChange({ sku: v })}
-            />
+            <Text style={[styles.fieldLabel, { color: colors.subtext }]}>SKU</Text>
+            <TextInput style={[styles.fieldInput, { backgroundColor: colors.card, color: colors.text }]} placeholder="Enter SKU" placeholderTextColor={Colors.grayLight} value={entry.sku} onChangeText={v => onChange({ sku: v })} />
           </View>
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>POLICY</Text>
-            <View style={styles.policyToggle}>
+            <Text style={[styles.fieldLabel, { color: colors.subtext }]}>POLICY</Text>
+            <View style={[styles.policyToggle, { backgroundColor: colors.inputBg }]}>
               {POLICIES.map(p => (
-                <Pressable
-                  key={p}
-                  onPress={() => onChange({ policy: p, reason: null })}
-                  style={[styles.policyToggleBtn, entry.policy === p && { backgroundColor: POLICY_COLOR[p] }]}
-                >
-                  <Text style={[styles.policyToggleTxt, entry.policy === p && { color: '#fff' }]}>{p}</Text>
+                <Pressable key={p} onPress={() => onChange({ policy: p, reason: null })} style={[styles.policyToggleBtn, entry.policy === p && { backgroundColor: POLICY_COLOR[p] }]}>
+                  <Text style={[styles.policyToggleTxt, { color: colors.subtext }, entry.policy === p && { color: '#fff' }]}>{p}</Text>
                 </Pressable>
               ))}
             </View>
@@ -469,19 +458,15 @@ function EntryCard({
       ) : (
         <View style={styles.itemInfoRow}>
           <View style={styles.itemInfoBlock}>
-            <Text style={styles.itemName}>{entry.itemName}</Text>
-            <Text style={styles.itemSku}>{entry.sku}</Text>
+            <Text style={[styles.itemName, { color: colors.text }]}>{entry.itemName}</Text>
+            <Text style={[styles.itemSku, { color: colors.subtext }]}>{entry.sku}</Text>
           </View>
           <View style={styles.policyChangePill}>
-            <Text style={styles.policyChangeLabel}>Change</Text>
-            <View style={styles.policyToggleMini}>
+            <Text style={[styles.policyChangeLabel, { color: colors.subtext }]}>Change</Text>
+            <View style={[styles.policyToggleMini, { backgroundColor: colors.inputBg }]}>
               {POLICIES.map(p => (
-                <Pressable
-                  key={p}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ policy: p, reason: null }); }}
-                  style={[styles.policyToggleMiniBtn, entry.policy === p && { backgroundColor: POLICY_COLOR[p] }]}
-                >
-                  <Text style={[styles.policyToggleMiniTxt, entry.policy === p && { color: '#fff' }]}>{p}</Text>
+                <Pressable key={p} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ policy: p, reason: null }); }} style={[styles.policyToggleMiniBtn, entry.policy === p && { backgroundColor: POLICY_COLOR[p] }]}>
+                  <Text style={[styles.policyToggleMiniTxt, { color: colors.subtext }, entry.policy === p && { color: '#fff' }]}>{p}</Text>
                 </Pressable>
               ))}
             </View>
@@ -490,28 +475,17 @@ function EntryCard({
       )}
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>QUANTITY</Text>
-        <TextInput
-          style={styles.fieldInput}
-          placeholder="Enter quantity"
-          placeholderTextColor={Colors.grayLight}
-          value={entry.qty}
-          onChangeText={v => onChange({ qty: v })}
-          keyboardType="numeric"
-        />
+        <Text style={[styles.fieldLabel, { color: colors.subtext }]}>QUANTITY</Text>
+        <TextInput style={[styles.fieldInput, { backgroundColor: colors.card, color: colors.text }]} placeholder="Enter quantity" placeholderTextColor={Colors.grayLight} value={entry.qty} onChangeText={v => onChange({ qty: v })} keyboardType="numeric" />
       </View>
 
       {isDsDc && (
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>REASON</Text>
+          <Text style={[styles.fieldLabel, { color: colors.subtext }]}>REASON</Text>
           <View style={styles.reasonGrid}>
             {REASONS.map(r => (
-              <Pressable
-                key={r}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ reason: r, expiryDate: '', remainingDays: '' }); }}
-                style={[styles.reasonBtn, entry.reason === r && { backgroundColor: color, borderColor: color }]}
-              >
-                <Text style={[styles.reasonBtnText, entry.reason === r && { color: '#fff' }]}>{r}</Text>
+              <Pressable key={r} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ reason: r, expiryDate: '', remainingDays: '' }); }} style={[styles.reasonBtn, { backgroundColor: colors.card, borderColor: colors.divider }, entry.reason === r && { backgroundColor: color, borderColor: color }]}>
+                <Text style={[styles.reasonBtnText, { color: colors.text }, entry.reason === r && { color: '#fff' }]}>{r}</Text>
               </Pressable>
             ))}
           </View>
@@ -519,29 +493,16 @@ function EntryCard({
       )}
 
       {isDsDc && entry.reason === 'Expired ITEM' && (
-        <View style={[styles.expiryBlockInner, { borderColor: color + '40' }]}>
+        <View style={[styles.expiryBlockInner, { backgroundColor: colors.card, borderColor: color + '40' }]}>
           <Text style={[styles.fieldLabel, { color, marginBottom: 2 }]}>EXPIRY DETAILS</Text>
           <View style={styles.twoCol}>
             <View style={[styles.fieldGroup, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>EXPIRY DATE</Text>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder="DD/MM/YYYY"
-                placeholderTextColor={Colors.grayLight}
-                value={entry.expiryDate}
-                onChangeText={v => onChange({ expiryDate: v })}
-              />
+              <Text style={[styles.fieldLabel, { color: colors.subtext }]}>EXPIRY DATE</Text>
+              <TextInput style={[styles.fieldInput, { backgroundColor: colors.inputBg, color: colors.text }]} placeholder="DD/MM/YYYY" placeholderTextColor={Colors.grayLight} value={entry.expiryDate} onChangeText={v => onChange({ expiryDate: v })} />
             </View>
             <View style={[styles.fieldGroup, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>REMAINING DAYS</Text>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder="Days"
-                placeholderTextColor={Colors.grayLight}
-                value={entry.remainingDays}
-                onChangeText={v => onChange({ remainingDays: v })}
-                keyboardType="numeric"
-              />
+              <Text style={[styles.fieldLabel, { color: colors.subtext }]}>REMAINING DAYS</Text>
+              <TextInput style={[styles.fieldInput, { backgroundColor: colors.inputBg, color: colors.text }]} placeholder="Days" placeholderTextColor={Colors.grayLight} value={entry.remainingDays} onChangeText={v => onChange({ remainingDays: v })} keyboardType="numeric" />
             </View>
           </View>
         </View>
@@ -550,22 +511,20 @@ function EntryCard({
       {isDsDc && (
         <View style={styles.fieldGroup}>
           <View style={styles.photoFieldHeader}>
-            <Text style={styles.fieldLabel}>PHOTOS (MIN 1 REQUIRED)</Text>
-            <Text style={styles.photoCountTxt}>{entry.photos.length}/100</Text>
+            <Text style={[styles.fieldLabel, { color: colors.subtext }]}>PHOTOS (MIN 1 REQUIRED)</Text>
+            <Text style={[styles.photoCountTxt, { color: colors.subtext }]}>{entry.photos.length}/100</Text>
           </View>
           {entry.photos.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
               {entry.photos.map(uri => (
                 <View key={uri} style={styles.photoThumb}>
-                  <Image source={{ uri }} style={styles.photoImg} />
-                  <Pressable onPress={() => onPhotoRemove(uri)} style={styles.photoRemove}>
-                    <Ionicons name="close" size={11} color="#fff" />
-                  </Pressable>
+                  <Image source={{ uri }} style={[styles.photoImg, { backgroundColor: colors.inputBg }]} />
+                  <Pressable onPress={() => onPhotoRemove(uri)} style={styles.photoRemove}><Ionicons name="close" size={11} color="#fff" /></Pressable>
                 </View>
               ))}
             </ScrollView>
           )}
-          <Pressable onPress={onPhotoPick} style={[styles.photoBtn, { borderColor: color }]}>
+          <Pressable onPress={onPhotoPick} style={[styles.photoBtn, { backgroundColor: colors.card, borderColor: color }]}>
             <Ionicons name="camera-outline" size={16} color={color} />
             <Text style={[styles.photoBtnText, { color }]}>{entry.photos.length === 0 ? 'Add Photo' : 'Add More'}</Text>
           </Pressable>
@@ -574,42 +533,22 @@ function EntryCard({
 
       {(isSupplier || isNew) && (
         <>
-          <Pressable
-            onPress={() => { setExpiryOpen(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            style={[styles.optToggleRow, { borderColor: color + '50' }]}
-          >
-            <View style={[styles.optToggleIcon, { backgroundColor: color + '20' }]}>
-              <Ionicons name="calendar-outline" size={15} color={color} />
-            </View>
-            <Text style={[styles.optToggleLabel, { color }]}>
-              {expiryOpen ? 'Hide Expiry Date' : 'Add Expiry Date'}
-            </Text>
+          <Pressable onPress={() => { setExpiryOpen(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={[styles.optToggleRow, { backgroundColor: colors.card, borderColor: color + '50' }]}>
+            <View style={[styles.optToggleIcon, { backgroundColor: color + '20' }]}><Ionicons name="calendar-outline" size={15} color={color} /></View>
+            <Text style={[styles.optToggleLabel, { color }]}>{expiryOpen ? 'Hide Expiry Date' : 'Add Expiry Date'}</Text>
             <Ionicons name={expiryOpen ? 'chevron-up' : 'chevron-down'} size={16} color={color} />
           </Pressable>
 
           {expiryOpen && (
-            <View style={[styles.expiryBlockInner, { borderColor: color + '40' }]}>
+            <View style={[styles.expiryBlockInner, { backgroundColor: colors.card, borderColor: color + '40' }]}>
               <View style={styles.twoCol}>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>EXPIRY DATE</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    placeholder="DD/MM/YYYY"
-                    placeholderTextColor={Colors.grayLight}
-                    value={entry.expiryDate}
-                    onChangeText={v => onChange({ expiryDate: v })}
-                  />
+                  <Text style={[styles.fieldLabel, { color: colors.subtext }]}>EXPIRY DATE</Text>
+                  <TextInput style={[styles.fieldInput, { backgroundColor: colors.inputBg, color: colors.text }]} placeholder="DD/MM/YYYY" placeholderTextColor={Colors.grayLight} value={entry.expiryDate} onChangeText={v => onChange({ expiryDate: v })} />
                 </View>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>REMAINING DAYS</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    placeholder="Days"
-                    placeholderTextColor={Colors.grayLight}
-                    value={entry.remainingDays}
-                    onChangeText={v => onChange({ remainingDays: v })}
-                    keyboardType="numeric"
-                  />
+                  <Text style={[styles.fieldLabel, { color: colors.subtext }]}>REMAINING DAYS</Text>
+                  <TextInput style={[styles.fieldInput, { backgroundColor: colors.inputBg, color: colors.text }]} placeholder="Days" placeholderTextColor={Colors.grayLight} value={entry.remainingDays} onChangeText={v => onChange({ remainingDays: v })} keyboardType="numeric" />
                 </View>
               </View>
             </View>
@@ -617,40 +556,29 @@ function EntryCard({
 
           {isNew && (
             <>
-              <Pressable
-                onPress={() => { setPhotosOpen(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                style={[styles.optToggleRow, { borderColor: color + '50' }]}
-              >
-                <View style={[styles.optToggleIcon, { backgroundColor: color + '20' }]}>
-                  <Ionicons name="camera-outline" size={15} color={color} />
-                </View>
-                <Text style={[styles.optToggleLabel, { color }]}>
-                  {photosOpen
-                    ? (entry.photos.length > 0 ? `Hide Photos (${entry.photos.length})` : 'Hide Photos')
-                    : 'Add Photos'}
-                </Text>
+              <Pressable onPress={() => { setPhotosOpen(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={[styles.optToggleRow, { backgroundColor: colors.card, borderColor: color + '50' }]}>
+                <View style={[styles.optToggleIcon, { backgroundColor: color + '20' }]}><Ionicons name="camera-outline" size={15} color={color} /></View>
+                <Text style={[styles.optToggleLabel, { color }]}>{photosOpen ? (entry.photos.length > 0 ? `Hide Photos (${entry.photos.length})` : 'Hide Photos') : 'Add Photos'}</Text>
                 <Ionicons name={photosOpen ? 'chevron-up' : 'chevron-down'} size={16} color={color} />
               </Pressable>
 
               {photosOpen && (
                 <View style={styles.fieldGroup}>
                   <View style={styles.photoFieldHeader}>
-                    <Text style={styles.fieldLabel}>PHOTOS (OPTIONAL)</Text>
-                    <Text style={styles.photoCountTxt}>{entry.photos.length}/100</Text>
+                    <Text style={[styles.fieldLabel, { color: colors.subtext }]}>PHOTOS (OPTIONAL)</Text>
+                    <Text style={[styles.photoCountTxt, { color: colors.subtext }]}>{entry.photos.length}/100</Text>
                   </View>
                   {entry.photos.length > 0 && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
                       {entry.photos.map(uri => (
                         <View key={uri} style={styles.photoThumb}>
-                          <Image source={{ uri }} style={styles.photoImg} />
-                          <Pressable onPress={() => onPhotoRemove(uri)} style={styles.photoRemove}>
-                            <Ionicons name="close" size={11} color="#fff" />
-                          </Pressable>
+                          <Image source={{ uri }} style={[styles.photoImg, { backgroundColor: colors.inputBg }]} />
+                          <Pressable onPress={() => onPhotoRemove(uri)} style={styles.photoRemove}><Ionicons name="close" size={11} color="#fff" /></Pressable>
                         </View>
                       ))}
                     </ScrollView>
                   )}
-                  <Pressable onPress={onPhotoPick} style={[styles.photoBtn, { borderColor: color }]}>
+                  <Pressable onPress={onPhotoPick} style={[styles.photoBtn, { backgroundColor: colors.card, borderColor: color }]}>
                     <Ionicons name="camera-outline" size={16} color={color} />
                     <Text style={[styles.photoBtnText, { color }]}>{entry.photos.length === 0 ? 'Add Photo' : 'Add More'}</Text>
                   </Pressable>
@@ -677,6 +605,7 @@ function EntryCard({
 }
 
 function HistoryCard({ item }: { item: HistoryItem }) {
+  const { colors } = useSettings();
   const color = POLICY_COLOR[item.policy];
   const cardBg = POLICY_CARD_BG[item.policy];
   return (
@@ -684,14 +613,14 @@ function HistoryCard({ item }: { item: HistoryItem }) {
       <View style={styles.historyRow}>
         <View style={[styles.historyDot, { backgroundColor: color }]} />
         <View style={styles.historyBody}>
-          <Text style={styles.historyItemName} numberOfLines={1}>{item.itemName}</Text>
+          <Text style={[styles.historyItemName, { color: colors.text }]} numberOfLines={1}>{item.itemName}</Text>
           <View style={styles.historyMeta}>
-            <Text style={styles.historyMetaTxt}>{item.barcode}</Text>
-            {item.reason ? <Text style={styles.historyMetaTxt}>· {item.reason}</Text> : null}
-            {item.expiryDate ? <Text style={styles.historyMetaTxt}>· Exp {item.expiryDate}</Text> : null}
+            <Text style={[styles.historyMetaTxt, { color: colors.subtext }]}>{item.barcode}</Text>
+            {item.reason ? <Text style={[styles.historyMetaTxt, { color: colors.subtext }]}>· {item.reason}</Text> : null}
+            {item.expiryDate ? <Text style={[styles.historyMetaTxt, { color: colors.subtext }]}>· Exp {item.expiryDate}</Text> : null}
             {item.photoCount > 0 ? (
               <View style={styles.photoBadge}>
-                <Text style={styles.historyMetaTxt}>·</Text>
+                <Text style={[styles.historyMetaTxt, { color: colors.subtext }]}>·</Text>
                 <Ionicons name="camera" size={10} color={color} />
                 <Text style={[styles.historyMetaTxt, { color }]}>{item.photoCount}</Text>
               </View>
@@ -700,7 +629,7 @@ function HistoryCard({ item }: { item: HistoryItem }) {
         </View>
         <View style={styles.historyRight}>
           <Text style={[styles.historyQty, { color }]}>{item.qty}</Text>
-          <Text style={styles.historyDate}>{fmtDateTime(item.createdAt)}</Text>
+          <Text style={[styles.historyDate, { color: colors.subtext }]}>{fmtDateTime(item.createdAt)}</Text>
         </View>
       </View>
     </View>

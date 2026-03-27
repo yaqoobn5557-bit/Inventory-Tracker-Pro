@@ -16,7 +16,9 @@ Preferred communication style: Simple, everyday language.
 - **Routing**: expo-router with file-based routing. All screens are top-level files in `app/` directory (no nested tab/stack groups)
 - **Navigation Flow**: Splash (`index.tsx`) → Login → Store Select → Dashboard → Feature screens (pomaker, invoice, expiry-damage, shopper-verify)
 - **State Management**: React Query (`@tanstack/react-query`) for server state, React Context (`lib/auth-context.tsx`) for auth state
-- **Auth**: Simple email-based login stored in AsyncStorage. No password authentication on the client side — just email + store selection persisted locally
+- **Auth**: Google-only login (mock, ready for real OAuth). Store selection persisted via `lib/auth-context.tsx`
+- **Theming**: Full dark/light mode via `lib/settings-context.tsx`. `LIGHT_COLORS` / `DARK_COLORS` objects provide bg, card, text, subtext, inputBg, divider, cardBorder tokens. All screens use `useSettings()` for dynamic colors, persisted in AsyncStorage (`app_theme` key)
+- **Internationalization**: 6 languages (English, Hindi, Arabic, Urdu, Nepali, Bengali) via `constants/translations.ts`. 50+ translation keys covering all screens. Language persisted in AsyncStorage (`app_language` key). All screens use `useSettings()` for language + `translations[language]` for strings
 - **Styling**: Raw StyleSheet (no UI library), with a custom color constants file (`constants/colors.ts`). Uses Poppins font family via `@expo-google-fonts/poppins`
 - **Animations**: `react-native-reanimated` for transitions and animated splash screen
 - **Platform handling**: Web platform gets manual inset values (`webTopInset`/`webBottomInset`), native uses `react-native-safe-area-context`
