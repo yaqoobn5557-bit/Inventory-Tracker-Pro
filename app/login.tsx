@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
   Platform,
@@ -20,35 +19,10 @@ import * as Haptics from 'expo-haptics';
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [focused, setFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
-
-  const isValid = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-
-  const handleLogin = async () => {
-    if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address');
-      return;
-    }
-    if (!isValid(email.trim())) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
-    try {
-      setIsSubmitting(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await login(email.trim().toLowerCase());
-      router.replace('/store-select');
-    } catch {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleGoogleLogin = async () => {
     try {
@@ -87,91 +61,29 @@ export default function LoginScreen() {
           </Text>
         </View>
         <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in with your email to continue</Text>
+        <Text style={styles.subtitle}>Sign in to access your inventory dashboard</Text>
       </View>
 
-      <View style={[styles.formSection, { paddingBottom: insets.bottom + webBottomInset + 24 }]}>
-        <View style={styles.card}>
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-            <View style={[styles.inputBox, focused && styles.inputBoxFocused]}>
-              <View style={styles.inputIconWrap}>
-                <Ionicons
-                  name="mail-outline"
-                  size={18}
-                  color={focused ? Colors.accent : Colors.gray}
-                />
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder="you@example.com"
-                placeholderTextColor={Colors.grayLight}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="email"
-                editable={!isSubmitting}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                onSubmitEditing={handleLogin}
-                returnKeyType="go"
-              />
-              {email.length > 0 && isValid(email) && (
-                <View style={styles.validIcon}>
-                  <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-                </View>
-              )}
-            </View>
-          </View>
-
-          <Pressable
-            onPress={handleLogin}
-            disabled={isSubmitting}
-            style={({ pressed }) => [
-              styles.loginBtn,
-              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-              isSubmitting && { opacity: 0.7 },
-            ]}
-          >
-            <LinearGradient
-              colors={isSubmitting ? [Colors.gray, Colors.gray] : [Colors.accent, '#FF8C5A']}
-              style={styles.loginBtnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color={Colors.white} />
-              ) : (
-                <>
-                  <Text style={styles.loginBtnText}>Sign In</Text>
-                  <Ionicons name="arrow-forward" size={18} color={Colors.white} />
-                </>
-              )}
-            </LinearGradient>
-          </Pressable>
-        </View>
-
-        <View style={styles.orRow}>
-          <View style={styles.orLine} />
-          <Text style={styles.orText}>OR</Text>
-          <View style={styles.orLine} />
-        </View>
-
+      <View style={[styles.bottomSection, { paddingBottom: insets.bottom + webBottomInset + 32 }]}>
         <Pressable
           onPress={handleGoogleLogin}
           disabled={isSubmitting}
           style={({ pressed }) => [
             styles.googleBtn,
-            pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+            pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
             isSubmitting && { opacity: 0.6 },
           ]}
         >
-          <View style={styles.googleIconBox}>
-            <Text style={styles.googleG}>G</Text>
-          </View>
-          <Text style={styles.googleBtnText}>Continue with Google</Text>
+          {isSubmitting ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : (
+            <>
+              <View style={styles.googleIconBox}>
+                <Text style={styles.googleG}>G</Text>
+              </View>
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
+            </>
+          )}
         </Pressable>
 
         <View style={styles.footer}>
@@ -221,125 +133,41 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  formSection: {
+  bottomSection: {
     paddingHorizontal: 20,
-    gap: 20,
-  },
-  card: {
-    backgroundColor: Colors.white,
-    borderRadius: 24,
-    padding: 22,
-    gap: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 28,
-    elevation: 10,
-  },
-
-  fieldGroup: { gap: 10 },
-  fieldLabel: {
-    fontSize: 11,
-    fontFamily: 'Poppins_700Bold',
-    color: Colors.gray,
-    letterSpacing: 1.5,
-  },
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.offWhite,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    overflow: 'hidden',
-  },
-  inputBoxFocused: {
-    borderColor: Colors.accent,
-    backgroundColor: '#FFF8F5',
-  },
-  inputIconWrap: {
-    width: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingRight: 14,
-    fontSize: 15,
-    fontFamily: 'Poppins_400Regular',
-    color: Colors.primary,
-    minWidth: 0,
-  },
-  validIcon: {
-    paddingRight: 14,
-  },
-
-  loginBtn: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  loginBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 17,
-    gap: 8,
-  },
-  loginBtnText: {
-    fontSize: 16,
-    fontFamily: 'Poppins_700Bold',
-    color: Colors.white,
-    letterSpacing: 0.5,
-  },
-
-  orRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  orLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  orText: {
-    fontSize: 11,
-    fontFamily: 'Poppins_600SemiBold',
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1.5,
+    gap: 24,
   },
 
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 14,
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    borderRadius: 16,
+    paddingVertical: 17,
+    paddingHorizontal: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
   googleIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 7,
     backgroundColor: '#F1F3F4',
     justifyContent: 'center',
     alignItems: 'center',
   },
   googleG: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'Poppins_700Bold',
     color: '#4285F4',
   },
   googleBtnText: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: Colors.primary,
   },
