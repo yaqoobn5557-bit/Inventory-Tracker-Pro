@@ -50,6 +50,19 @@ export default function LoginScreen() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      setIsSubmitting(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await login('google.user@gmail.com');
+      router.replace('/store-select');
+    } catch {
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -139,6 +152,27 @@ export default function LoginScreen() {
             </LinearGradient>
           </Pressable>
         </View>
+
+        <View style={styles.orRow}>
+          <View style={styles.orLine} />
+          <Text style={styles.orText}>OR</Text>
+          <View style={styles.orLine} />
+        </View>
+
+        <Pressable
+          onPress={handleGoogleLogin}
+          disabled={isSubmitting}
+          style={({ pressed }) => [
+            styles.googleBtn,
+            pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+            isSubmitting && { opacity: 0.6 },
+          ]}
+        >
+          <View style={styles.googleIconBox}>
+            <Text style={styles.googleG}>G</Text>
+          </View>
+          <Text style={styles.googleBtnText}>Continue with Google</Text>
+        </Pressable>
 
         <View style={styles.footer}>
           <MaterialCommunityIcons name="store" size={13} color="rgba(255,255,255,0.3)" />
@@ -257,6 +291,57 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: Colors.white,
     letterSpacing: 0.5,
+  },
+
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  orText: {
+    fontSize: 11,
+    fontFamily: 'Poppins_600SemiBold',
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 1.5,
+  },
+
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  googleIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: '#F1F3F4',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  googleG: {
+    fontSize: 15,
+    fontFamily: 'Poppins_700Bold',
+    color: '#4285F4',
+  },
+  googleBtnText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: Colors.primary,
   },
 
   footer: {
