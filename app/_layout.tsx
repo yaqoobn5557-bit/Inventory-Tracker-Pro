@@ -7,6 +7,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AuthProvider } from "@/lib/auth-context";
+import { SettingsProvider } from "@/lib/settings-context";
 import {
   useFonts,
   Poppins_400Regular,
@@ -29,12 +30,13 @@ function RootLayoutNav() {
       <Stack.Screen name="invoice-return" />
       <Stack.Screen name="shopper-verify" />
       <Stack.Screen name="expiry-damage" />
+      <Stack.Screen name="settings" />
     </Stack>
   );
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Poppins_400Regular,
     Poppins_500Medium,
     Poppins_600SemiBold,
@@ -42,21 +44,23 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
-            <AuthProvider>
-              <RootLayoutNav />
-            </AuthProvider>
+            <SettingsProvider>
+              <AuthProvider>
+                <RootLayoutNav />
+              </AuthProvider>
+            </SettingsProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>

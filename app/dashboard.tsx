@@ -12,14 +12,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
+import translations from '@/constants/translations';
 import Colors from '@/constants/colors';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 interface DashboardOption {
   id: string;
-  title: string;
-  subtitle: string;
+  titleKey: 'pomaker' | 'invoice' | 'expiry_damage';
+  subKey: 'pomaker_sub' | 'invoice_sub' | 'expiry_damage_sub';
   icon: string;
   iconSet: 'ionicons' | 'material-community' | 'feather';
   gradient: [string, string];
@@ -29,8 +31,8 @@ interface DashboardOption {
 const OPTIONS: DashboardOption[] = [
   {
     id: 'pomaker',
-    title: 'POMAKER',
-    subtitle: 'Create purchase orders',
+    titleKey: 'pomaker',
+    subKey: 'pomaker_sub',
     icon: 'file-document-edit-outline',
     iconSet: 'material-community',
     gradient: ['#6366F1', '#818CF8'],
@@ -38,8 +40,8 @@ const OPTIONS: DashboardOption[] = [
   },
   {
     id: 'invoice',
-    title: 'INVOICE',
-    subtitle: 'Manage invoices',
+    titleKey: 'invoice',
+    subKey: 'invoice_sub',
     icon: 'receipt-outline',
     iconSet: 'ionicons',
     gradient: ['#10B981', '#34D399'],
@@ -47,8 +49,8 @@ const OPTIONS: DashboardOption[] = [
   },
   {
     id: 'expiry-damage',
-    title: 'EXPIRY DAMAGE',
-    subtitle: 'Track expired & damaged items',
+    titleKey: 'expiry_damage',
+    subKey: 'expiry_damage_sub',
     icon: 'alert-circle-outline',
     iconSet: 'ionicons',
     gradient: ['#EF4444', '#F87171'],
@@ -68,7 +70,17 @@ function OptionIcon({ option }: { option: DashboardOption }) {
   return <Ionicons name={option.icon as any} size={size} color={color} />;
 }
 
-function OptionCard({ option, index }: { option: DashboardOption; index: number }) {
+function OptionCard({
+  option,
+  index,
+  colors,
+  t,
+}: {
+  option: DashboardOption;
+  index: number;
+  colors: any;
+  t: any;
+}) {
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(option.route as any);
@@ -80,6 +92,7 @@ function OptionCard({ option, index }: { option: DashboardOption; index: number 
         onPress={handlePress}
         style={({ pressed }) => [
           styles.optionCard,
+          { backgroundColor: colors.card, borderColor: colors.cardBorder },
           pressed && styles.optionCardPressed,
         ]}
       >
@@ -93,12 +106,12 @@ function OptionCard({ option, index }: { option: DashboardOption; index: number 
         </LinearGradient>
 
         <View style={styles.optionInfo}>
-          <Text style={styles.optionTitle}>{option.title}</Text>
-          <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
+          <Text style={[styles.optionTitle, { color: colors.text }]}>{t[option.titleKey]}</Text>
+          <Text style={[styles.optionSubtitle, { color: colors.subtext }]}>{t[option.subKey]}</Text>
         </View>
 
-        <View style={styles.optionArrow}>
-          <Ionicons name="chevron-forward" size={20} color={Colors.grayLight} />
+        <View style={[styles.optionArrow, { backgroundColor: colors.iconBg }]}>
+          <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
         </View>
       </Pressable>
     </Animated.View>
@@ -107,7 +120,9 @@ function OptionCard({ option, index }: { option: DashboardOption; index: number 
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { userEmail, clearStore, logout } = useAuth();
+  const { clearStore, logout } = useAuth();
+  const { colors, language } = useSettings();
+  const t = translations[language];
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
@@ -123,10 +138,15 @@ export default function DashboardScreen() {
     router.replace('/login');
   };
 
+  const handleSettings = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/settings');
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <LinearGradient
-        colors={['#0A1628', '#142240']}
+        colors={colors.headerGrad}
         style={styles.headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -138,9 +158,12 @@ export default function DashboardScreen() {
                 <MaterialCommunityIcons name="store" size={13} color={Colors.accent} />
                 <Text style={styles.storeTagText}>RIMAL-HUNGERSTATION</Text>
               </View>
-              <Text style={styles.headerGreeting}>Dashboard</Text>
+              <Text style={styles.headerGreeting}>{t.dashboard}</Text>
             </View>
             <View style={styles.headerActions}>
+              <Pressable onPress={handleSettings} style={styles.headerBtn}>
+                <Ionicons name="settings-outline" size={18} color={Colors.white} />
+              </Pressable>
               <Pressable onPress={handleChangeStore} style={styles.headerBtn}>
                 <Ionicons name="swap-horizontal-outline" size={18} color={Colors.white} />
               </Pressable>
@@ -154,14 +177,17 @@ export default function DashboardScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + webBottomInset + 20 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + webBottomInset + 20 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Operations</Text>
+        <Text style={[styles.sectionTitle, { color: colors.subtext }]}>{t.operations}</Text>
 
         <View style={styles.optionsGrid}>
           {OPTIONS.map((option, index) => (
-            <OptionCard key={option.id} option={option} index={index} />
+            <OptionCard key={option.id} option={option} index={index} colors={colors} t={t} />
           ))}
         </View>
       </ScrollView>
@@ -170,29 +196,17 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.offWhite,
-  },
-  headerGradient: {
-    paddingBottom: 14,
-  },
-  headerContent: {
-    paddingHorizontal: 18,
-  },
+  container: { flex: 1 },
+  headerGradient: { paddingBottom: 14 },
+  headerContent: { paddingHorizontal: 18 },
   headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 10,
   },
-  headerLeft: {
-    gap: 3,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  headerLeft: { gap: 3 },
+  headerActions: { flexDirection: 'row', gap: 8 },
   headerBtn: {
     width: 34,
     height: 34,
@@ -201,11 +215,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  storeTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
+  storeTag: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   storeTagText: {
     fontSize: 10,
     fontFamily: 'Poppins_700Bold',
@@ -217,14 +227,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: Colors.white,
   },
-  headerEmail: {
-    fontSize: 11,
-    fontFamily: 'Poppins_400Regular',
-    color: Colors.grayLight,
-  },
-  scrollView: {
-    flex: 1,
-  },
+  scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 24,
@@ -232,24 +235,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontFamily: 'Poppins_600SemiBold',
-    color: Colors.gray,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: 16,
   },
-  optionsGrid: {
-    gap: 14,
-  },
+  optionsGrid: { gap: 14 },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
     borderRadius: 20,
     padding: 18,
     gap: 16,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: 12,
     elevation: 3,
   },
@@ -264,26 +264,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  optionInfo: {
-    flex: 1,
-    gap: 2,
-  },
+  optionInfo: { flex: 1, gap: 2 },
   optionTitle: {
     fontSize: 16,
     fontFamily: 'Poppins_700Bold',
-    color: Colors.primary,
     letterSpacing: 0.5,
   },
   optionSubtitle: {
     fontSize: 13,
     fontFamily: 'Poppins_400Regular',
-    color: Colors.gray,
   },
   optionArrow: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: Colors.offWhite,
     justifyContent: 'center',
     alignItems: 'center',
   },

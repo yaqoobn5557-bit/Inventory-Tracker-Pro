@@ -13,12 +13,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
+import translations from '@/constants/translations';
 import Colors from '@/constants/colors';
 import * as Haptics from 'expo-haptics';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
+  const { language, theme } = useSettings();
+  const t = translations[language];
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -60,8 +64,8 @@ export default function LoginScreen() {
             InvenTrack <Text style={{ color: Colors.accent }}>Pro</Text>
           </Text>
         </View>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to access your inventory dashboard</Text>
+        <Text style={styles.title}>{t.welcome_back}</Text>
+        <Text style={styles.subtitle}>{t.sign_in_subtitle}</Text>
       </View>
 
       <View style={[styles.bottomSection, { paddingBottom: insets.bottom + webBottomInset + 32 }]}>
@@ -81,14 +85,14 @@ export default function LoginScreen() {
               <View style={styles.googleIconBox}>
                 <Text style={styles.googleG}>G</Text>
               </View>
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
+              <Text style={styles.googleBtnText}>{t.continue_with_google}</Text>
             </>
           )}
         </Pressable>
 
         <View style={styles.footer}>
           <MaterialCommunityIcons name="store" size={13} color="rgba(255,255,255,0.3)" />
-          <Text style={styles.footerText}>Rimal HungerStation Inventory System</Text>
+          <Text style={styles.footerText}>{t.rimal_footer}</Text>
         </View>
       </View>
     </View>

@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
+import translations from '@/constants/translations';
 import Colors from '@/constants/colors';
 import * as Haptics from 'expo-haptics';
 
@@ -26,6 +28,8 @@ const STORES = [
 export default function StoreSelectScreen() {
   const insets = useSafeAreaInsets();
   const { selectStore, logout, userEmail } = useAuth();
+  const { colors, language } = useSettings();
+  const t = translations[language];
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
@@ -42,9 +46,9 @@ export default function StoreSelectScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <LinearGradient
-        colors={['#0A1628', '#142240']}
+        colors={colors.headerGrad}
         style={styles.headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -53,7 +57,7 @@ export default function StoreSelectScreen() {
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
               <MaterialCommunityIcons name="store" size={15} color={Colors.accent} />
-              <Text style={styles.headerTitle}>SELECT STORE</Text>
+              <Text style={styles.headerTitle}>{t.select_store}</Text>
             </View>
             <View style={styles.headerRight}>
               <View style={styles.userBadge}>
@@ -75,6 +79,7 @@ export default function StoreSelectScreen() {
             onPress={() => handleSelectStore(store.id)}
             style={({ pressed }) => [
               styles.storeCard,
+              { backgroundColor: colors.card, borderColor: colors.cardBorder },
               pressed && styles.storeCardPressed,
             ]}
           >
@@ -90,10 +95,10 @@ export default function StoreSelectScreen() {
             </View>
 
             <View style={styles.storeInfo}>
-              <Text style={styles.storeName}>{store.name}</Text>
+              <Text style={[styles.storeName, { color: colors.text }]}>{store.name}</Text>
               <View style={styles.storeLocationRow}>
-                <Ionicons name="location-outline" size={14} color={Colors.gray} />
-                <Text style={styles.storeLocation}>{store.location}</Text>
+                <Ionicons name="location-outline" size={14} color={colors.subtext} />
+                <Text style={[styles.storeLocation, { color: colors.subtext }]}>{store.location}</Text>
               </View>
             </View>
 
@@ -108,16 +113,9 @@ export default function StoreSelectScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.offWhite,
-  },
-  headerGradient: {
-    paddingBottom: 14,
-  },
-  headerContent: {
-    paddingHorizontal: 18,
-  },
+  container: { flex: 1 },
+  headerGradient: { paddingBottom: 14 },
+  headerContent: { paddingHorizontal: 18 },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -172,10 +170,10 @@ const styles = StyleSheet.create({
   storeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
     borderRadius: 20,
     padding: 20,
     gap: 16,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
@@ -201,7 +199,6 @@ const styles = StyleSheet.create({
   storeName: {
     fontSize: 16,
     fontFamily: 'Poppins_700Bold',
-    color: Colors.primary,
   },
   storeLocationRow: {
     flexDirection: 'row',
@@ -211,7 +208,6 @@ const styles = StyleSheet.create({
   storeLocation: {
     fontSize: 13,
     fontFamily: 'Poppins_400Regular',
-    color: Colors.gray,
   },
   storeArrow: {
     width: 36,
