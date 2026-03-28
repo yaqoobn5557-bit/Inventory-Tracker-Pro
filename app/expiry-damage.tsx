@@ -53,10 +53,10 @@ const POLICY_BG: Record<Policy, string> = {
 };
 
 const POLICY_CARD_BG: Record<Policy, string> = {
-  SUPPLIER: '#E8F5EE',
-  DS:       '#F0EBFD',
-  DC:       '#FDF0E8',
-  UNKNOWN:  '#E8EFFE',
+  SUPPLIER: '#BBFAD2',
+  DS:       '#DDD6FE',
+  DC:       '#FFCFA8',
+  UNKNOWN:  '#BFDBFE',
 };
 
 const POLICY_LABEL: Record<Policy, string> = {
@@ -540,23 +540,19 @@ export default function ExpiryDamageScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={[styles.scanInputCard, { backgroundColor: colors.card }]}>
-            <Pressable onPress={openScanner} style={styles.camBtn}>
-              <LinearGradient colors={['#EF4444', '#F87171']} style={styles.camBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                <Ionicons name="scan" size={26} color="#fff" />
-                <Text style={styles.camBtnText}>{t.tap_to_scan}</Text>
-              </LinearGradient>
-            </Pressable>
-            <View style={styles.orRow}>
-              <View style={[styles.orLine, { backgroundColor: colors.divider }]} />
-              <Text style={[styles.orTxt, { color: colors.subtext }]}>{t.or_manual}</Text>
-              <View style={[styles.orLine, { backgroundColor: colors.divider }]} />
+          <View style={[styles.scanInputCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <View style={styles.scanInputCardHeader}>
+              <MaterialCommunityIcons name="barcode-scan" size={16} color="#EF4444" />
+              <Text style={[styles.scanInputCardTitle, { color: colors.text }]}>SCAN BARCODE</Text>
+              <View style={styles.scanCode128Pill}>
+                <Text style={styles.scanCode128PillText}>CODE 128 ONLY</Text>
+              </View>
             </View>
             <View style={styles.barcodeRow}>
               <TextInput
                 ref={barcodeRef}
                 style={[styles.barcodeInput, { backgroundColor: colors.inputBg, color: colors.text }]}
-                placeholder="Scan or type barcode"
+                placeholder="Scan or type barcode..."
                 placeholderTextColor={Colors.grayLight}
                 value={barcodeInput}
                 onChangeText={setBarcodeInput}
@@ -565,8 +561,10 @@ export default function ExpiryDamageScreen() {
                 blurOnSubmit={false}
                 onSubmitEditing={() => processBarcode(barcodeInput)}
               />
-              <Pressable onPress={() => processBarcode(barcodeInput)} style={styles.barcodeAddBtn}>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Pressable onPress={openScanner} style={styles.camBtn}>
+                <LinearGradient colors={['#EF4444', '#F87171']} style={styles.camBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                  <Ionicons name="camera" size={22} color="#fff" />
+                </LinearGradient>
               </Pressable>
             </View>
           </View>

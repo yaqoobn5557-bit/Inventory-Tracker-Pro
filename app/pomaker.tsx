@@ -180,25 +180,19 @@ export default function POmakerScreen() {
 
       <ScrollView style={s.scroll} contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + webBottomInset + 24 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={[s.inputCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-          <Pressable onPress={openScanner} style={s.scanBtn}>
-            <LinearGradient colors={['#4F46E5', '#6366F1']} style={s.scanBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Ionicons name="scan" size={28} color={Colors.white} />
-              <Text style={s.scanBtnText}>{t.tap_to_scan}</Text>
-              <Text style={s.scanBtnSub}>{t.code128_only}</Text>
-            </LinearGradient>
-          </Pressable>
-
-          <View style={s.divider}>
-            <View style={[s.dividerLine, { backgroundColor: colors.divider }]} />
-            <Text style={[s.dividerText, { color: colors.subtext }]}>{t.or_manual}</Text>
-            <View style={[s.dividerLine, { backgroundColor: colors.divider }]} />
+          <View style={s.inputCardHeader}>
+            <MaterialCommunityIcons name="barcode-scan" size={16} color="#6366F1" />
+            <Text style={[s.inputCardTitle, { color: colors.text }]}>SCAN BARCODE</Text>
+            <View style={s.code128Pill}>
+              <Text style={s.code128PillText}>CODE 128 ONLY</Text>
+            </View>
           </View>
 
-          <Animated.View style={[s.manualRow, { transform: [{ translateX: shakeAnim }] }]}>
+          <Animated.View style={[s.scanRow, { transform: [{ translateX: shakeAnim }] }]}>
             <TextInput
               ref={barcodeInputRef}
-              style={[s.manualInput, { backgroundColor: colors.inputBg, color: colors.text }]}
-              placeholder="Barcode"
+              style={[s.scanInput, { backgroundColor: colors.inputBg, color: colors.text }]}
+              placeholder="Scan or type barcode..."
               placeholderTextColor={Colors.grayLight}
               value={manualBarcode}
               onChangeText={setManualBarcode}
@@ -207,8 +201,10 @@ export default function POmakerScreen() {
               blurOnSubmit={false}
               onSubmitEditing={() => processBarcode(manualBarcode)}
             />
-            <Pressable onPress={() => processBarcode(manualBarcode)} style={s.manualAddBtn}>
-              <Ionicons name="add" size={22} color={Colors.white} />
+            <Pressable onPress={openScanner} style={s.cameraBtn}>
+              <LinearGradient colors={['#4F46E5', '#6366F1']} style={s.cameraBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name="camera" size={22} color={Colors.white} />
+              </LinearGradient>
             </Pressable>
           </Animated.View>
           <Text style={[s.physicalHint, { color: colors.subtext }]}>{t.physical_hint}</Text>
@@ -300,18 +296,16 @@ const s = StyleSheet.create({
   headerItemCountText: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: Colors.white },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, gap: 14 },
-  inputCard: { borderRadius: 20, padding: 18, gap: 14, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 },
-  scanBtn: { borderRadius: 16, overflow: 'hidden' },
-  scanBtnGradient: { paddingVertical: 16, alignItems: 'center', gap: 5 },
-  scanBtnText: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: Colors.white, letterSpacing: 0.5 },
-  scanBtnSub: { fontSize: 11, fontFamily: 'Poppins_400Regular', color: 'rgba(255,255,255,0.65)' },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dividerLine: { flex: 1, height: 1 },
-  dividerText: { fontSize: 9, fontFamily: 'Poppins_600SemiBold', letterSpacing: 0.8, textAlign: 'center' },
-  manualRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  manualInput: { flex: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 14, fontFamily: 'Poppins_400Regular', minWidth: 0 },
-  manualAddBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  physicalHint: { fontSize: 11, fontFamily: 'Poppins_400Regular', textAlign: 'center', marginTop: -6 },
+  inputCard: { borderRadius: 20, padding: 18, gap: 12, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 },
+  inputCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  inputCardTitle: { fontSize: 12, fontFamily: 'Poppins_700Bold', letterSpacing: 1.5, flex: 1 },
+  code128Pill: { backgroundColor: 'rgba(99,102,241,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  code128PillText: { fontSize: 9, fontFamily: 'Poppins_700Bold', color: '#6366F1', letterSpacing: 0.8 },
+  scanRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  scanInput: { flex: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 14, fontSize: 14, fontFamily: 'Poppins_400Regular', minWidth: 0 },
+  cameraBtn: { width: 52, height: 52, borderRadius: 14, overflow: 'hidden', flexShrink: 0 },
+  cameraBtnGrad: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  physicalHint: { fontSize: 11, fontFamily: 'Poppins_400Regular', textAlign: 'center' },
   listCard: { borderRadius: 20, padding: 18, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 },
   listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   listTitle: { fontSize: 14, fontFamily: 'Poppins_700Bold' },

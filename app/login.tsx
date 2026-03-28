@@ -20,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
+  const { login, selectStore } = useAuth();
   const { language, theme } = useSettings();
   const t = translations[language];
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +33,8 @@ export default function LoginScreen() {
       setIsSubmitting(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await login('google.user@gmail.com');
-      router.replace('/store-select');
+      await selectStore('rimal-hungerstation');
+      router.replace('/dashboard');
     } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
