@@ -96,6 +96,16 @@ interface HistoryItem {
   createdAt: string;
 }
 
+type TaskPriority = 'normal' | 'urgent';
+
+interface Task {
+  id: string;
+  text: string;
+  done: boolean;
+  priority: TaskPriority;
+  createdAt: string;
+}
+
 function blankEntry(barcode: string, found: ItemData | null): CurrentEntry {
   return {
     barcode,
@@ -141,11 +151,15 @@ export default function ExpiryDamageScreen() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'scan' | 'tasks'>('scan');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskInput, setTaskInput] = useState('');
+  const [taskPriority, setTaskPriority] = useState<TaskPriority>('normal');
 
   const barcodeRef = useRef<TextInput>(null);
   const lastScannedRef = useRef('');
 
-  useEffect(() => { loadHistory(); }, []);
+  useEffect(() => { loadHistory(); loadTasks(); }, []);
 
   const loadHistory = async () => {
     try {
@@ -153,6 +167,49 @@ export default function ExpiryDamageScreen() {
       if (raw) setHistory(JSON.parse(raw));
     } catch {}
   };
+
+  const loadTasks = async () => {
+    try {
+      const raw = await AsyncStorage.getItem('store_tasks');
+      if (raw) setTasks(JSON.parse(raw));
+    } catch {}
+  };
+
+  const saveTasks = async (updated: Task[]) => {
+    setTasks(updated);
+    try { await AsyncStorage.setItem('store_tasks', JSON.stringify(updated)); } catch {}
+  };
+
+  const addTask = () => {
+    const text = taskInput.trim();
+    if (!text) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const newTask: Task = { id: genId(), text, done: false, priority: taskPriority, createdAt: new Date().toISOString() };
+    saveTasks([newTask, ...tasks]);
+    setTaskInput('');
+    setTaskPriority('normal');
+  };
+
+  const toggleTask = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    saveTasks(tasks.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  };
+
+  const deleteTask = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    saveTasks(tasks.filter(t => t.id !== id));
+  };
+
+  const clearDoneTasks = () => {
+    const pending = tasks.filter(t => !t.done);
+    if (pending.length === tasks.length) return;
+    Alert.alert('Clear Done Tasks', `Remove ${tasks.length - pending.length} completed task(s)?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Clear', style: 'destructive', onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); saveTasks(pending); } },
+    ]);
+  };
+
+  const pendingTaskCount = tasks.filter(t => !t.done).length;
 
   const processBarcode = useCallback((code: string) => {
     const trimmed = code.trim();
@@ -307,11 +364,35 @@ export default function ExpiryDamageScreen() {
           <View style={styles.headerCenter}>
             <Ionicons name="alert-circle-outline" size={16} color="rgba(255,255,255,0.8)" />
             <Text style={styles.headerTitle}>
-              {entry ? 'ITEM ENTRY' : t.expiry_damage.toUpperCase()}
+              {entry ? 'ITEM ENTRY' : activeTab === 'tasks' ? 'STORE TASKS' : t.expiry_damage.toUpperCase()}
             </Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
+
+        {!entry && (
+          <View style={styles.tabRow}>
+            <Pressable
+              onPress={() => { setActiveTab('scan'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              style={[styles.tabBtn, activeTab === 'scan' && styles.tabBtnActive]}
+            >
+              <MaterialCommunityIcons name="barcode-scan" size={13} color={activeTab === 'scan' ? '#EF4444' : 'rgba(255,255,255,0.6)'} />
+              <Text style={[styles.tabBtnText, activeTab === 'scan' && styles.tabBtnTextActive]}>EXPIRY</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { setActiveTab('tasks'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              style={[styles.tabBtn, activeTab === 'tasks' && styles.tabBtnActive]}
+            >
+              <Ionicons name="checkmark-done-outline" size={13} color={activeTab === 'tasks' ? '#EF4444' : 'rgba(255,255,255,0.6)'} />
+              <Text style={[styles.tabBtnText, activeTab === 'tasks' && styles.tabBtnTextActive]}>TASKS</Text>
+              {pendingTaskCount > 0 && (
+                <View style={styles.taskBadge}>
+                  <Text style={styles.taskBadgeText}>{pendingTaskCount}</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
+        )}
       </LinearGradient>
 
       {entry ? (
@@ -329,6 +410,128 @@ export default function ExpiryDamageScreen() {
             onSubmit={handleSubmit}
             isSaving={isSaving}
           />
+        </ScrollView>
+      ) : activeTab === 'tasks' ? (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + webBottomInset + 24 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.taskInputCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <View style={styles.taskInputHeader}>
+              <Ionicons name="add-circle" size={18} color="#EF4444" />
+              <Text style={[styles.taskInputTitle, { color: colors.text }]}>ADD NEW TASK</Text>
+            </View>
+            <View style={styles.priorityRow}>
+              <Pressable
+                onPress={() => setTaskPriority('normal')}
+                style={[styles.priorityBtn, { borderColor: taskPriority === 'normal' ? '#6366F1' : colors.divider, backgroundColor: taskPriority === 'normal' ? 'rgba(99,102,241,0.1)' : colors.inputBg }]}
+              >
+                <Ionicons name="ellipse-outline" size={13} color={taskPriority === 'normal' ? '#6366F1' : colors.subtext} />
+                <Text style={[styles.priorityBtnText, { color: taskPriority === 'normal' ? '#6366F1' : colors.subtext }]}>Normal</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setTaskPriority('urgent')}
+                style={[styles.priorityBtn, { borderColor: taskPriority === 'urgent' ? '#EF4444' : colors.divider, backgroundColor: taskPriority === 'urgent' ? 'rgba(239,68,68,0.1)' : colors.inputBg }]}
+              >
+                <Ionicons name="alert-circle" size={13} color={taskPriority === 'urgent' ? '#EF4444' : colors.subtext} />
+                <Text style={[styles.priorityBtnText, { color: taskPriority === 'urgent' ? '#EF4444' : colors.subtext }]}>Urgent</Text>
+              </Pressable>
+            </View>
+            <View style={styles.taskInputRow}>
+              <TextInput
+                style={[styles.taskTextInput, { backgroundColor: colors.inputBg, color: colors.text }]}
+                placeholder="Enter task description..."
+                placeholderTextColor={Colors.grayLight}
+                value={taskInput}
+                onChangeText={setTaskInput}
+                multiline
+                returnKeyType="done"
+                blurOnSubmit={false}
+                onSubmitEditing={addTask}
+              />
+              <Pressable onPress={addTask} style={[styles.taskAddBtn, { backgroundColor: taskPriority === 'urgent' ? '#EF4444' : '#6366F1' }]}>
+                <Ionicons name="add" size={22} color="#fff" />
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.taskListSection}>
+            <View style={styles.taskListHeader}>
+              <View style={styles.taskListHeaderLeft}>
+                <Text style={[styles.taskListTitle, { color: colors.text }]}>TASK LIST</Text>
+                {tasks.length > 0 && (
+                  <View style={styles.taskCountPill}>
+                    <Text style={styles.taskCountText}>{pendingTaskCount} pending · {tasks.length - pendingTaskCount} done</Text>
+                  </View>
+                )}
+              </View>
+              {tasks.some(t => t.done) && (
+                <Pressable onPress={clearDoneTasks} style={styles.clearDoneBtn}>
+                  <Ionicons name="trash-outline" size={13} color={Colors.danger} />
+                  <Text style={styles.clearDoneText}>Clear Done</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {tasks.length === 0 ? (
+              <View style={styles.taskEmpty}>
+                <Ionicons name="clipboard-outline" size={44} color={Colors.grayLight} />
+                <Text style={[styles.taskEmptyTitle, { color: colors.subtext }]}>No tasks yet</Text>
+                <Text style={[styles.taskEmptySub, { color: colors.subtext }]}>Add a task above to get started</Text>
+              </View>
+            ) : (
+              <>
+                {tasks.filter(t => !t.done).map(task => (
+                  <View key={task.id} style={[styles.taskCard, { backgroundColor: colors.card, borderColor: task.priority === 'urgent' ? 'rgba(239,68,68,0.3)' : colors.cardBorder, borderLeftColor: task.priority === 'urgent' ? '#EF4444' : '#6366F1' }]}>
+                    <Pressable onPress={() => toggleTask(task.id)} style={[styles.taskCheckbox, { borderColor: task.priority === 'urgent' ? '#EF4444' : '#6366F1' }]}>
+                      <Ionicons name="ellipse-outline" size={20} color={task.priority === 'urgent' ? '#EF4444' : '#6366F1'} />
+                    </Pressable>
+                    <View style={styles.taskBody}>
+                      <Text style={[styles.taskText, { color: colors.text }]}>{task.text}</Text>
+                      <View style={styles.taskMeta}>
+                        {task.priority === 'urgent' && (
+                          <View style={styles.urgentBadge}>
+                            <Ionicons name="alert-circle" size={10} color="#EF4444" />
+                            <Text style={styles.urgentBadgeText}>URGENT</Text>
+                          </View>
+                        )}
+                        <Text style={[styles.taskDate, { color: colors.subtext }]}>{fmtDateTime(task.createdAt)}</Text>
+                      </View>
+                    </View>
+                    <Pressable onPress={() => deleteTask(task.id)} style={styles.taskDeleteBtn}>
+                      <Ionicons name="close" size={16} color={Colors.danger} />
+                    </Pressable>
+                  </View>
+                ))}
+
+                {tasks.some(t => t.done) && (
+                  <>
+                    <View style={styles.doneDivider}>
+                      <View style={[styles.doneDividerLine, { backgroundColor: colors.divider }]} />
+                      <Text style={[styles.doneDividerText, { color: colors.subtext }]}>COMPLETED</Text>
+                      <View style={[styles.doneDividerLine, { backgroundColor: colors.divider }]} />
+                    </View>
+                    {tasks.filter(t => t.done).map(task => (
+                      <View key={task.id} style={[styles.taskCard, styles.taskCardDone, { backgroundColor: colors.card, borderColor: colors.cardBorder, borderLeftColor: colors.divider }]}>
+                        <Pressable onPress={() => toggleTask(task.id)} style={[styles.taskCheckbox, { borderColor: Colors.grayLight }]}>
+                          <Ionicons name="checkmark-circle" size={20} color={Colors.grayLight} />
+                        </Pressable>
+                        <View style={styles.taskBody}>
+                          <Text style={[styles.taskText, styles.taskTextDone, { color: colors.subtext }]}>{task.text}</Text>
+                          <Text style={[styles.taskDate, { color: colors.subtext }]}>{fmtDateTime(task.createdAt)}</Text>
+                        </View>
+                        <Pressable onPress={() => deleteTask(task.id)} style={styles.taskDeleteBtn}>
+                          <Ionicons name="close" size={16} color={Colors.grayLight} />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+          </View>
         </ScrollView>
       ) : (
         <ScrollView
@@ -825,6 +1028,53 @@ const styles = StyleSheet.create({
   historyRight: { alignItems: 'flex-end', gap: 2, flexShrink: 0 },
   historyQty: { fontSize: 16, fontFamily: 'Poppins_700Bold' },
   historyDate: { fontSize: 10, fontFamily: 'Poppins_400Regular', color: Colors.gray },
+
+  tabRow: { flexDirection: 'row', marginHorizontal: 18, marginBottom: 12, marginTop: 6, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 14, padding: 3, gap: 3 },
+  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, paddingVertical: 9 },
+  tabBtnActive: { backgroundColor: '#fff' },
+  tabBtnText: { fontSize: 11, fontFamily: 'Poppins_700Bold', color: 'rgba(255,255,255,0.6)', letterSpacing: 0.8 },
+  tabBtnTextActive: { color: '#EF4444' },
+  taskBadge: { backgroundColor: '#EF4444', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4, marginLeft: 2 },
+  taskBadgeText: { fontSize: 10, fontFamily: 'Poppins_700Bold', color: '#fff' },
+
+  taskInputCard: { borderRadius: 20, padding: 18, gap: 12, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
+  taskInputHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  taskInputTitle: { fontSize: 12, fontFamily: 'Poppins_700Bold', letterSpacing: 1.5 },
+  priorityRow: { flexDirection: 'row', gap: 10 },
+  priorityBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderRadius: 12, paddingVertical: 10 },
+  priorityBtnText: { fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
+  taskInputRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  taskTextInput: { flex: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13, fontSize: 14, fontFamily: 'Poppins_400Regular', minHeight: 50, maxHeight: 100 },
+  taskAddBtn: { width: 50, height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+
+  taskListSection: { gap: 10 },
+  taskListHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  taskListHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  taskListTitle: { fontSize: 11, fontFamily: 'Poppins_700Bold', letterSpacing: 1.5 },
+  taskCountPill: { backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  taskCountText: { fontSize: 10, fontFamily: 'Poppins_600SemiBold', color: '#EF4444' },
+  clearDoneBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  clearDoneText: { fontSize: 11, fontFamily: 'Poppins_600SemiBold', color: Colors.danger },
+
+  taskEmpty: { alignItems: 'center', paddingVertical: 48, gap: 8 },
+  taskEmptyTitle: { fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
+  taskEmptySub: { fontSize: 13, fontFamily: 'Poppins_400Regular', textAlign: 'center' },
+
+  taskCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, borderWidth: 1, borderLeftWidth: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
+  taskCardDone: { opacity: 0.65 },
+  taskCheckbox: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  taskBody: { flex: 1, gap: 4 },
+  taskText: { fontSize: 14, fontFamily: 'Poppins_500Medium', lineHeight: 20 },
+  taskTextDone: { textDecorationLine: 'line-through' },
+  taskMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  taskDate: { fontSize: 11, fontFamily: 'Poppins_400Regular' },
+  urgentBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(239,68,68,0.12)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  urgentBadgeText: { fontSize: 9, fontFamily: 'Poppins_700Bold', color: '#EF4444', letterSpacing: 0.8 },
+  taskDeleteBtn: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+
+  doneDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 4 },
+  doneDividerLine: { flex: 1, height: 1 },
+  doneDividerText: { fontSize: 10, fontFamily: 'Poppins_700Bold', letterSpacing: 1.5 },
 
   scannerContainer: { flex: 1, backgroundColor: '#000' },
   scannerTop: {
